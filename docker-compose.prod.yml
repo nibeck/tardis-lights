@@ -1,6 +1,7 @@
 services:
   backend:
     image: tardis-lights-backend:latest
+    container_name: tardis-backend
     ports:
       - "8000:8000"
     privileged: true
@@ -8,6 +9,7 @@ services:
 
   frontend:
     image: tardis-lights-frontend:latest
+    container_name: tardis-frontend
     ports:
       - "3000:3000"
     depends_on:

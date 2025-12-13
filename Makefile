@@ -32,7 +32,7 @@ start-registry:
 # Step 1: Build the images on your Mac
 build:
 	@echo "--- 🏗️   Building Images ---"
-	docker-compose build
+	DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose build
 	@echo "--- 🏷️   Tagging Images for Registry ---"
 	docker tag $(IMAGE_BACKEND):$(VERSION) $(FULL_IMAGE_BACKEND)
 	docker tag $(IMAGE_FRONTEND):$(VERSION) $(FULL_IMAGE_FRONTEND)

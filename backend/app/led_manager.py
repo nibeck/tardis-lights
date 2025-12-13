@@ -1,14 +1,21 @@
 import platform
 import time
 import threading
+import sys
 
-if platform.system() == 'Linux' and 'raspberrypi' in platform.uname().release.lower():
+try:
     import board
     import neopixel
-else:
+    print(f"DEBUG: Hardware libraries loaded. Board ID: {getattr(board, 'board_id', 'unknown')}", flush=True)
+    REAL_HARDWARE = True
+except (ImportError, NotImplementedError, Exception) as e:
+    print(f"DEBUG: Could not load hardware libraries ({e}). Using Mock LEDs.", flush=True)
+    REAL_HARDWARE = False
+
+if not REAL_HARDWARE:
     # Mock for development on non-rPi systems
     class MockNeoPixel:
-        def __init__(self, pin, num, brightness=1.0, auto_write=True):
+        def __init__(self, pin, num, brightness=1.0, auto_write=True, pixel_order=None):
             self.num = num
             self.brightness = brightness
             self.auto_write = auto_write
@@ -23,8 +30,11 @@ else:
         def __setitem__(self, index, color):
             self.pixels[index] = color
 
-    board = type('MockBoard', (), {'D18': None})()
-    neopixel = type('MockNeoPixelModule', (), {'NeoPixel': MockNeoPixel})()
+    # Create mock board and neopixel modules
+    class MockBoard:
+        D18 = "D18"
+    board = MockBoard()
+    neopixel = type('MockNeoPixelModule', (), {'NeoPixel': MockNeoPixel, 'GRB': 'GRB'})()
 
 class LEDManager:
     def __init__(self, num_leds=50, pin=board.D18):
@@ -34,28 +44,40 @@ class LEDManager:
 
     def set_color(self, color):
         with self.lock:
-            self.pixels.fill(color)
-            self.pixels.show()
+            try:
+                self.pixels.fill(color)
+                self.pixels.show()
+            except Exception as e:
+                print(f"Error setting LED color: {e}", file=sys.stderr, flush=True)
 
     def turn_on(self):
         self.set_color((255, 255, 255))  # White
 
     def turn_off(self):
         with self.lock:
-            self.pixels.fill((0, 0, 0))
-            self.pixels.show()
+            try:
+                self.pixels.fill((0, 0, 0))
+                self.pixels.show()
+            except Exception as e:
+                print(f"Error turning off LEDs: {e}", file=sys.stderr, flush=True)
 
     def pulse(self, color, duration=1.0):
         # Simple pulse effect
         for i in range(10):
             brightness = (i / 10.0)
             with self.lock:
-                self.pixels.fill(tuple(int(c * brightness) for c in color))
-                self.pixels.show()
+                try:
+                    self.pixels.fill(tuple(int(c * brightness) for c in color))
+                    self.pixels.show()
+                except Exception as e:
+                    print(f"Error pulsing LEDs: {e}", file=sys.stderr, flush=True)
             time.sleep(duration / 20)
         for i in range(10, 0, -1):
             brightness = (i / 10.0)
             with self.lock:
-                self.pixels.fill(tuple(int(c * brightness) for c in color))
-                self.pixels.show()
+                try:
+                    self.pixels.fill(tuple(int(c * brightness) for c in color))
+                    self.pixels.show()
+                except Exception as e:
+                    print(f"Error pulsing LEDs: {e}", file=sys.stderr, flush=True)
             time.sleep(duration / 20)

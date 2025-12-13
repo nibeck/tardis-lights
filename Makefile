@@ -1,0 +1,74 @@
+# --- Configuration Variables ---
+# Change these if your project name or ports change
+IMAGE_BACKEND = tardis-lights-backend
+IMAGE_FRONTEND = tardis-lights-frontend
+VERSION = latest
+APP_PORT_BACKEND = 8000
+APP_PORT_FRONTEND = 3000
+
+# --- Raspberry Pi Details ---
+PI_USER = pi
+PI_HOST = 192.168.1.161
+REGISTRY_PORT = 5001
+MAC_IP = $(shell ipconfig getifaddr en0)
+
+# --- Derived Variables (Do not edit) ---
+REGISTRY_URL = localhost:$(REGISTRY_PORT)
+FULL_IMAGE_BACKEND = $(REGISTRY_URL)/$(IMAGE_BACKEND):$(VERSION)
+FULL_IMAGE_FRONTEND = $(REGISTRY_URL)/$(IMAGE_FRONTEND):$(VERSION)
+
+# .PHONY tells Make that these are commands, not files
+.PHONY: all build push deploy logs start-registry
+
+# Default target: Run everything in order
+all: deploy
+
+# Optional: Start registry on Mac if not running
+start-registry:
+	@echo "--- 🏁 Starting Registry on Mac ---"
+	docker start registry 2>/dev/null || docker run -d -p $(REGISTRY_PORT):5000 --name registry --restart unless-stopped registry:2
+
+# Step 1: Build the images on your Mac
+build:
+	@echo "--- 🏗️   Building Images ---"
+	docker-compose build
+	@echo "--- 🏷️   Tagging Images for Registry ---"
+	docker tag $(IMAGE_BACKEND):$(VERSION) $(FULL_IMAGE_BACKEND)
+	docker tag $(IMAGE_FRONTEND):$(VERSION) $(FULL_IMAGE_FRONTEND)
+
+# Step 2: Push the images to the Pi's Registry
+push: build
+	@echo "--- 🚀 Pushing to Registry at $(REGISTRY_URL) ---"
+	docker push $(FULL_IMAGE_BACKEND)
+	docker push $(FULL_IMAGE_FRONTEND)
+
+# Step 3: Tell the Pi to pull, tag, and run with docker-compose
+deploy: push start-registry
+	@echo "--- 📡 Deploying to Raspberry Pi ---"
+	scp docker-compose.yml $(PI_USER)@$(PI_HOST):~/
+	ssh $(PI_USER)@$(PI_HOST) "docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) && \
+	docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) && \
+	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND) && \
+	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) $(IMAGE_FRONTEND) && \
+	sed -i 's|build: ./backend|image: $(IMAGE_BACKEND)|' docker-compose.yml && \
+	sed -i 's|build: ./frontend|image: $(IMAGE_FRONTEND)|' docker-compose.yml && \
+	docker compose up -d"
+	@echo "--- ✅ Deployment Complete! ---"
+	@echo "View App:      http://$(PI_HOST):$(APP_PORT_FRONTEND) (frontend)"
+	@echo "View Backend:  http://$(PI_HOST):$(APP_PORT_BACKEND) (backend)"
+
+# Helper: View logs of the running services on the Pi
+logs:
+	ssh $(PI_USER)@$(PI_HOST) "docker compose logs -f"
+
+# Local test: Run containers on Mac for testing
+test-local: build
+	@echo "--- 🧪 Testing Locally on Mac ---"
+	docker compose up -d
+	@echo "Frontend: http://localhost:3000"
+	@echo "Backend: http://localhost:8000"
+	@echo "Run 'make stop-local' to stop"
+
+# Stop local test
+stop-local:
+	docker compose down

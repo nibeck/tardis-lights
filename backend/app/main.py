@@ -8,11 +8,11 @@ app = FastAPI()
 
 # Configuration for LED Groups
 LED_GROUPS = [
-    {"name": "Group1", "count": 10},
-    {"name": "Group2", "count": 10},
-    {"name": "Group3", "count": 10},
-    {"name": "Group4", "count": 10},
-    {"name": "Group5", "count": 10},
+    {"name": "Front", "count": 10},
+    {"name": "Left", "count": 10},
+    {"name": "Rear", "count": 10},
+    {"name": "Right", "count": 10},
+    {"name": "Top", "count": 10}
 ]
 
 led_manager = LEDManager(groups=LED_GROUPS)

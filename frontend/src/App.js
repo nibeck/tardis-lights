@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 function App() {
   const [status, setStatus] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('All');
-  const groups = ['All', 'Group1', 'Group2', 'Group3', 'Group4', 'Group5'];
+  const [selectedColor, setSelectedColor] = useState('#ff0000');
+  const groups = ['All', 'Front', 'Left', 'Back', 'Right', 'Top'];
 
   const callAPI = async (endpoint, body = {}) => {
     let url = `http://192.168.1.161:8000${endpoint}`;
@@ -40,6 +41,15 @@ function App() {
     }
   };
 
+  const hexToRgb = (hex) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 0, g: 0, b: 0 };
+  };
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>TARDIS Lights Controller</h1>
@@ -55,10 +65,18 @@ function App() {
           ))}
         </select>
       </div>
+      <div style={{ marginBottom: '10px' }}>
+        <label style={{ marginRight: '10px' }}>Select Color:</label>
+        <input
+          type="color"
+          value={selectedColor}
+          onChange={(e) => setSelectedColor(e.target.value)}
+        />
+      </div>
       <button onClick={() => callAPI('/led/on')}>Turn On</button>
       <button onClick={() => callAPI('/led/off')}>Turn Off</button>
-      <button onClick={() => callAPI('/led/color', { r: 255, g: 0, b: 0 })}>Set Red</button>
-      <button onClick={() => callAPI('/led/pulse', { r: 0, g: 255, b: 0 })}>Pulse Green</button>
+      <button onClick={() => callAPI('/led/color', hexToRgb(selectedColor))}>Set Color</button>
+      <button onClick={() => callAPI('/led/pulse', hexToRgb(selectedColor))}>Pulse Color</button>
       <button onClick={() => callAPI('/led/rainbow')}>Rainbow</button>
       <p>Status: {status}</p>
     </div>

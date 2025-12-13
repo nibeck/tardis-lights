@@ -10,6 +10,7 @@ APP_PORT_FRONTEND = 3000
 PI_USER = pi
 PI_HOST = 192.168.1.161
 REGISTRY_PORT = 5001
+# NOTE: This command is for macOS. For Linux, use: $(shell hostname -I | awk '{print $$1}')
 MAC_IP = $(shell ipconfig getifaddr en0)
 
 # --- Derived Variables (Do not edit) ---
@@ -18,7 +19,7 @@ FULL_IMAGE_BACKEND = $(REGISTRY_URL)/$(IMAGE_BACKEND):$(VERSION)
 FULL_IMAGE_FRONTEND = $(REGISTRY_URL)/$(IMAGE_FRONTEND):$(VERSION)
 
 # .PHONY tells Make that these are commands, not files
-.PHONY: all build push deploy logs start-registry
+.PHONY: all build push deploy logs start-registry test-local stop-local
 
 # Default target: Run everything in order
 all: deploy
@@ -44,15 +45,13 @@ push: build
 
 # Step 3: Tell the Pi to pull, tag, and run with docker-compose
 deploy: push start-registry
-	@echo "--- 📡 Deploying to Raspberry Pi ---"
-	scp docker-compose.yml $(PI_USER)@$(PI_HOST):~/
+	@echo "--- 📡 Deploying to Raspberry Pi at $(PI_HOST) ---"
+	scp docker-compose.prod.yml $(PI_USER)@$(PI_HOST):~/docker-compose.yml
 	ssh $(PI_USER)@$(PI_HOST) "docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) && \
 	docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) && \
-	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND) && \
-	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) $(IMAGE_FRONTEND) && \
-	sed -i 's|build: ./backend|image: $(IMAGE_BACKEND)|' docker-compose.yml && \
-	sed -i 's|build: ./frontend|image: $(IMAGE_FRONTEND)|' docker-compose.yml && \
-	docker compose up -d"
+	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND):$(VERSION) && \
+	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) $(IMAGE_FRONTEND):$(VERSION) && \
+	docker compose down && docker compose up -d"
 	@echo "--- ✅ Deployment Complete! ---"
 	@echo "View App:      http://$(PI_HOST):$(APP_PORT_FRONTEND) (frontend)"
 	@echo "View Backend:  http://$(PI_HOST):$(APP_PORT_BACKEND) (backend)"

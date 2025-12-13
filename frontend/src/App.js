@@ -5,17 +5,22 @@ function App() {
 
   const callAPI = async (endpoint, body = {}) => {
     let url = `http://192.168.1.161:8000${endpoint}`;
-    if (endpoint === '/led/color' && body.r !== undefined) {
-      url += `?r=${body.r}&g=${body.g}&b=${body.b}`;
-    } else if (endpoint === '/led/pulse' && body.r !== undefined) {
-      url += `?r=${body.r}&g=${body.g}&b=${body.b}&duration=${body.duration || 1.0}`;
+
+    if (endpoint === '/led/pulse' && body.duration !== undefined) {
+      url += `?duration=${body.duration}`;
     }
+
+    const options = {
+      method: 'POST',
+    };
+
+    if (endpoint === '/led/color' || endpoint === '/led/pulse') {
+      options.headers = { 'Content-Type': 'application/json' };
+      options.body = JSON.stringify(body);
+    }
+
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: endpoint !== '/led/color' && endpoint !== '/led/pulse' ? { 'Content-Type': 'application/json' } : {},
-        body: endpoint !== '/led/color' && endpoint !== '/led/pulse' ? JSON.stringify(body) : undefined,
-      });
+      const response = await fetch(url, options);
       const data = await response.json();
       console.log('API Response:', data);  // Debug: log the full response
       setStatus(data.status || JSON.stringify(data));  // Fallback to full data if no status

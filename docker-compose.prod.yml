@@ -1,0 +1,15 @@
+services:
+  backend:
+    image: tardis-lights-backend:latest
+    ports:
+      - "8000:8000"
+    privileged: true
+    restart: unless-stopped
+
+  frontend:
+    image: tardis-lights-frontend:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped

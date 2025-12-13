@@ -1,9 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from .led_manager import LEDManager
 
 app = FastAPI()
 led_manager = LEDManager()
+
+class Color(BaseModel):
+    r: int
+    g: int
+    b: int
 
 # Add CORS middleware
 app.add_middleware(
@@ -29,11 +35,11 @@ def turn_off():
     return {"status": "LEDs turned off"}
 
 @app.post("/led/color")
-def set_color(r: int, g: int, b: int):
-    led_manager.set_color((r, g, b))
-    return {"status": f"Color set to ({r}, {g}, {b})"}
+def set_color(color: Color):
+    led_manager.set_color((color.r, color.g, color.b))
+    return {"status": f"Color set to ({color.r}, {color.g}, {color.b})"}
 
 @app.post("/led/pulse")
-def pulse(r: int = 255, g: int = 0, b: int = 0, duration: float = 1.0):
-    led_manager.pulse((r, g, b), duration)
+def pulse(background_tasks: BackgroundTasks, color: Color, duration: float = 1.0):
+    background_tasks.add_task(led_manager.pulse, (color.r, color.g, color.b), duration)
     return {"status": "Pulse effect applied"}

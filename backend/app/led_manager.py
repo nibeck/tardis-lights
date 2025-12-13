@@ -1,5 +1,6 @@
 import platform
 import time
+import threading
 
 if platform.system() == 'Linux' and 'raspberrypi' in platform.uname().release.lower():
     import board
@@ -29,27 +30,32 @@ class LEDManager:
     def __init__(self, num_leds=50, pin=board.D18):
         self.num_leds = num_leds
         self.pixels = neopixel.NeoPixel(pin, num_leds, brightness=0.2, auto_write=False)
+        self.lock = threading.Lock()
 
     def set_color(self, color):
-        self.pixels.fill(color)
-        self.pixels.show()
+        with self.lock:
+            self.pixels.fill(color)
+            self.pixels.show()
 
     def turn_on(self):
         self.set_color((255, 255, 255))  # White
 
     def turn_off(self):
-        self.pixels.fill((0, 0, 0))
-        self.pixels.show()
+        with self.lock:
+            self.pixels.fill((0, 0, 0))
+            self.pixels.show()
 
     def pulse(self, color, duration=1.0):
         # Simple pulse effect
         for i in range(10):
             brightness = (i / 10.0)
-            self.pixels.fill(tuple(int(c * brightness) for c in color))
-            self.pixels.show()
+            with self.lock:
+                self.pixels.fill(tuple(int(c * brightness) for c in color))
+                self.pixels.show()
             time.sleep(duration / 20)
         for i in range(10, 0, -1):
             brightness = (i / 10.0)
-            self.pixels.fill(tuple(int(c * brightness) for c in color))
-            self.pixels.show()
+            with self.lock:
+                self.pixels.fill(tuple(int(c * brightness) for c in color))
+                self.pixels.show()
             time.sleep(duration / 20)

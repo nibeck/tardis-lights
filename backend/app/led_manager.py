@@ -30,6 +30,9 @@ if not REAL_HARDWARE:
         def __setitem__(self, index, color):
             self.pixels[index] = color
 
+        def __getitem__(self, index):
+            return self.pixels[index]
+
     # Create mock board and neopixel modules
     class MockBoard:
         D18 = "D18"
@@ -37,42 +40,65 @@ if not REAL_HARDWARE:
     neopixel = type('MockNeoPixelModule', (), {'NeoPixel': MockNeoPixel, 'GRB': 'GRB'})()
 
 class LEDManager:
-    def __init__(self, num_leds=10, pin=board.D18):
-        self.num_leds = num_leds
-        self.pixels = neopixel.NeoPixel(pin, num_leds, brightness=0.2, auto_write=False)
-        self.lock = threading.Lock()
-        self.current_color = (0, 0, 0)
+    def __init__(self, groups, pin=board.D18):
+        self.groups_config = groups
+        self.group_ranges = {}
+        self.num_leds = 0
+        
+        # Build the group ranges
+        for group in groups:
+            count = group['count']
+            name = group['name']
+            start = self.num_leds
+            end = start + count
+            self.group_ranges[name] = (start, end)
+            self.num_leds += count
 
-    def set_color(self, color):
-        self.current_color = color
+        self.pixels = neopixel.NeoPixel(pin, self.num_leds, brightness=0.2, auto_write=False)
+        self.lock = threading.Lock()
+
+    def _get_range(self, group_name):
+        if group_name and group_name in self.group_ranges:
+            return self.group_ranges[group_name]
+        return (0, self.num_leds)
+
+    def set_color(self, color, group_name=None):
+        start, end = self._get_range(group_name)
         with self.lock:
             try:
-                self.pixels.fill(color)
+                for i in range(start, end):
+                    self.pixels[i] = color
                 self.pixels.show()
             except Exception as e:
                 print(f"Error setting LED color: {e}", file=sys.stderr, flush=True)
 
-    def turn_on(self):
-        self.set_color((255, 255, 255))  # White
+    def turn_on(self, group_name=None):
+        self.set_color((255, 255, 255), group_name)  # White
 
-    def turn_off(self):
-        self.current_color = (0, 0, 0)
-        with self.lock:
-            try:
-                self.pixels.fill((0, 0, 0))
-                self.pixels.show()
-            except Exception as e:
-                print(f"Error turning off LEDs: {e}", file=sys.stderr, flush=True)
+    def turn_off(self, group_name=None):
+        self.set_color((0, 0, 0), group_name)
 
-    def pulse(self, color=None, duration=1.0):
+    def pulse(self, color=None, duration=1.0, group_name=None):
+        start, end = self._get_range(group_name)
+        
         if color is None:
-            color = self.current_color
+            # Try to use the color of the first pixel in the range as the base
+            try:
+                color = self.pixels[start]
+                # If it's black/off, default to white so we see something
+                if color == (0, 0, 0):
+                    color = (255, 255, 255)
+            except:
+                color = (255, 255, 255)
+
         # Simple pulse effect
         for i in range(10):
             brightness = (i / 10.0)
             with self.lock:
                 try:
-                    self.pixels.fill(tuple(int(c * brightness) for c in color))
+                    dimmed_color = tuple(int(c * brightness) for c in color)
+                    for p in range(start, end):
+                        self.pixels[p] = dimmed_color
                     self.pixels.show()
                 except Exception as e:
                     print(f"Error pulsing LEDs: {e}", file=sys.stderr, flush=True)
@@ -91,19 +117,21 @@ class LEDManager:
         pos -= 170
         return (pos * 3, 0, 255 - pos * 3)
 
-    def rainbow_cycle(self, duration=5.0):
+    def rainbow_cycle(self, duration=5.0, group_name=None):
+        start, end = self._get_range(group_name)
+        num_in_range = end - start
         start_time = time.time()
         j = 0
         while time.time() - start_time < duration:
             with self.lock:
                 try:
-                    for i in range(self.num_leds):
-                        pixel_index = (i * 256 // self.num_leds) + j
-                        self.pixels[i] = self.wheel(pixel_index & 255)
+                    for i in range(num_in_range):
+                        pixel_index = (i * 256 // num_in_range) + j
+                        self.pixels[start + i] = self.wheel(pixel_index & 255)
                     self.pixels.show()
                 except Exception as e:
                     print(f"Error in rainbow cycle: {e}", file=sys.stderr, flush=True)
             j = (j + 1) % 256
             time.sleep(0.01)
         # Turn off LEDs after the cycle is complete
-        self.turn_off()
+        self.turn_off(group_name)

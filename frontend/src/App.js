@@ -37,6 +37,7 @@ function App() {
       <button onClick={() => callAPI('/led/off')}>Turn Off</button>
       <button onClick={() => callAPI('/led/color', { r: 255, g: 0, b: 0 })}>Set Red</button>
       <button onClick={() => callAPI('/led/pulse', { r: 0, g: 255, b: 0 })}>Pulse Green</button>
+      <button onClick={() => callAPI('/led/rainbow')}>Rainbow</button>
       <p>Status: {status}</p>
     </div>
   );

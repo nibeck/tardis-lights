@@ -104,6 +104,31 @@ class LEDManager:
                     print(f"Error pulsing LEDs: {e}", file=sys.stderr, flush=True)
             time.sleep(duration / 20)
 
+    def fade_to(self, target_color, duration=1.0, group_name=None):
+        start, end = self._get_range(group_name)
+        steps = 50  # Number of steps for the fade
+        delay = duration / steps
+
+        try:
+            # Get the starting color from the first pixel in the range
+            start_color = self.pixels[start]
+        except Exception:
+            start_color = (0, 0, 0)
+
+        for i in range(steps + 1):
+            ratio = i / steps
+            # Interpolate each color channel
+            r = int(start_color[0] * (1 - ratio) + target_color[0] * ratio)
+            g = int(start_color[1] * (1 - ratio) + target_color[1] * ratio)
+            b = int(start_color[2] * (1 - ratio) + target_color[2] * ratio)
+            current_color = (r, g, b)
+
+            with self.lock:
+                for p in range(start, end):
+                    self.pixels[p] = current_color
+                self.pixels.show()
+            time.sleep(delay)
+
     def wheel(self, pos):
         # Input a value 0 to 255 to get a color value.
         # The colours are a transition r - g - b - back to r.

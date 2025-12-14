@@ -2,7 +2,8 @@ from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
-from .led_manager import LEDManager
+from .led_manager import LEDManager, REAL_HARDWARE
+from .scene_manager import SceneManager
 
 app = FastAPI()
 
@@ -16,6 +17,7 @@ LED_GROUPS = [
 ]
 
 led_manager = LEDManager(groups=LED_GROUPS)
+scene_manager = SceneManager(led_manager)
 
 class Color(BaseModel):
     r: int
@@ -60,3 +62,12 @@ def pulse(background_tasks: BackgroundTasks, color: Optional[Color] = None, dura
 def rainbow(background_tasks: BackgroundTasks, duration: float = 5.0, group: Optional[str] = None):
     background_tasks.add_task(led_manager.rainbow_cycle, duration, group)
     return {"status": f"Rainbow effect started on {group if group else 'all'}"}
+
+@app.get("/scenes")
+def get_scenes():
+    return {"scenes": scene_manager.get_scene_names()}
+
+@app.post("/scenes/{scene_name}/play")
+def play_scene(scene_name: str, background_tasks: BackgroundTasks):
+    background_tasks.add_task(scene_manager.play_scene, scene_name)
+    return {"status": f"Playing scene: {scene_name}"}

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 function App() {
   const [status, setStatus] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('All');
   const [selectedColor, setSelectedColor] = useState('#ff0000');
-  const groups = ['All', 'Front', 'Left', 'Back', 'Right', 'Top'];
+  const [scenes, setScenes] = useState([]);
+  const [selectedScene, setSelectedScene] = useState('');
+  const groups = ['All', 'Front', 'Left', 'Rear', 'Right', 'Top'];
 
   const callAPI = async (endpoint, body = {}) => {
     let url = `http://192.168.1.161:8000${endpoint}`;
@@ -50,6 +52,24 @@ function App() {
     } : { r: 0, g: 0, b: 0 };
   };
 
+  useEffect(() => {
+    const fetchScenes = async () => {
+      try {
+        const response = await fetch('http://192.168.1.161:8000/scenes');
+        const data = await response.json();
+        if (data.scenes && data.scenes.length > 0) {
+          setScenes(data.scenes);
+          setSelectedScene(data.scenes[0]);
+        }
+      } catch (error) {
+        console.error('Error fetching scenes:', error);
+        setStatus('Error fetching scenes: ' + error.message);
+      }
+    };
+
+    fetchScenes();
+  }, []);
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>TARDIS Lights Controller</h1>
@@ -72,6 +92,26 @@ function App() {
           value={selectedColor}
           onChange={(e) => setSelectedColor(e.target.value)}
         />
+      </div>
+      <div style={{ marginTop: '20px', marginBottom: '10px' }}>
+        <label style={{ marginRight: '10px' }}>Select Scene:</label>
+        <select
+          value={selectedScene}
+          onChange={(e) => setSelectedScene(e.target.value)}
+          style={{ padding: '5px' }}
+          disabled={scenes.length === 0}
+        >
+          {scenes.length === 0 ? (
+            <option>Loading...</option>
+          ) : (
+            scenes.map((scene) => (
+              <option key={scene} value={scene}>{scene}</option>
+            ))
+          )}
+        </select>
+        <button onClick={() => callAPI(`/scenes/${selectedScene}/play`)} disabled={!selectedScene} style={{ marginLeft: '10px' }}>
+          Run Scene
+        </button>
       </div>
       <button onClick={() => callAPI('/led/on')}>Turn On</button>
       <button onClick={() => callAPI('/led/off')}>Turn Off</button>

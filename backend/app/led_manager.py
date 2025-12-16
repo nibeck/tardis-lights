@@ -160,3 +160,26 @@ class LEDManager:
             time.sleep(0.01)
         # Turn off LEDs after the cycle is complete
         self.turn_off(group_name)
+
+    def cylon(self, color=(255, 0, 0), duration=2.0, group_name=None):
+        start, end = self._get_range(group_name)
+        num_pixels = end - start
+        if num_pixels <= 0:
+            return
+
+        step_delay = duration / (2 * num_pixels)
+
+        # Sweep forward and backward
+        for i in list(range(num_pixels)) + list(range(num_pixels - 2, -1, -1)):
+            with self.lock:
+                # Fade all pixels in range to create trail
+                for j in range(start, end):
+                    current_color = self.pixels[j]
+                    self.pixels[j] = tuple(int(c * 0.7) for c in current_color)
+                
+                # Set the leading pixel
+                self.pixels[start + i] = color
+                self.pixels.show()
+            time.sleep(step_delay)
+            
+        self.turn_off(group_name)

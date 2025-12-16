@@ -24,6 +24,9 @@ SCENE_DEFS = {
     "Flash Groups": [
         {"action": "flash_groups_randomly", "kwargs": {"flashes": 3, "delay": 0.15}}
     ],
+    "Cylon": [
+        {"action": "cylon", "kwargs": {"color": (255, 0, 0), "duration": 2.0}}
+    ],
 }
 
 class SceneManager:

@@ -66,8 +66,8 @@ logs:
 test-local: build
 	@echo "--- 🧪 Testing Locally on Mac ---"
 	docker compose up -d
-	@echo "Frontend: http://localhost:3000"
-	@echo "Backend: http://localhost:8000"
+	@echo "Frontend: http://localhost"
+	@echo "Backend: http://localhost"
 	@echo "Run 'make stop-local' to stop"
 
 # Stop local test

@@ -46,15 +46,17 @@ push: build
 # Step 3: Tell the Pi to pull, tag, and run with docker-compose
 deploy: push start-registry
 	@echo "--- 📡 Deploying to Raspberry Pi at $(PI_HOST) ---"
+	ssh $(PI_USER)@$(PI_HOST) "mkdir -p ~/nginx"
 	scp docker-compose.prod.yml $(PI_USER)@$(PI_HOST):~/docker-compose.yml
+	scp nginx/default.conf $(PI_USER)@$(PI_HOST):~/nginx/default.conf
 	ssh $(PI_USER)@$(PI_HOST) "docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) && \
 	docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) && \
 	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND):$(VERSION) && \
 	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) $(IMAGE_FRONTEND):$(VERSION) && \
 	docker compose down && docker compose up -d"
 	@echo "--- ✅ Deployment Complete! ---"
-	@echo "View App:      http://$(PI_HOST):$(APP_PORT_FRONTEND) (frontend)"
-	@echo "View Backend:  http://$(PI_HOST):$(APP_PORT_BACKEND) (backend)"
+	@echo "View App:      http://$(PI_HOST) (frontend)"
+	@echo "View Backend:  http://$(PI_HOST) (backend)"
 
 # Helper: View logs of the running services on the Pi
 logs:

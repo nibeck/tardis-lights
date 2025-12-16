@@ -9,7 +9,7 @@ function App() {
   const groups = ['All', 'Front', 'Left', 'Rear', 'Right', 'Top'];
 
   const callAPI = async (endpoint, body = {}) => {
-    let url = `http://192.168.1.161:8000${endpoint}`;
+    let url = `/api${endpoint}`;
     const params = new URLSearchParams();
 
     if (endpoint === '/led/pulse' && body.duration !== undefined) {
@@ -55,7 +55,7 @@ function App() {
   useEffect(() => {
     const fetchScenes = async () => {
       try {
-        const response = await fetch('http://192.168.1.161:8000/scenes');
+        const response = await fetch('/api/scenes');
         const data = await response.json();
         if (data.scenes && data.scenes.length > 0) {
           setScenes(data.scenes);

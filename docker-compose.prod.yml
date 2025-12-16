@@ -1,17 +1,25 @@
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: tardis-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+
   backend:
     image: tardis-lights-backend:latest
     container_name: tardis-backend
-    ports:
-      - "8000:8000"
     privileged: true
     restart: unless-stopped
 
   frontend:
     image: tardis-lights-frontend:latest
     container_name: tardis-frontend
-    ports:
-      - "3000:3000"
     depends_on:
       - backend
     restart: unless-stopped

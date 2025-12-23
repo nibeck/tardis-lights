@@ -16,6 +16,11 @@ services:
     container_name: tardis-backend
     privileged: true
     restart: unless-stopped
+    devices:
+      - "/dev/snd:/dev/snd"
+    environment:
+      - AUDIODRIVER=alsa
+      - AUDIODEV=plughw:2,0
 
   frontend:
     image: tardis-lights-frontend:latest

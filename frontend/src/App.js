@@ -6,6 +6,8 @@ function App() {
   const [selectedColor, setSelectedColor] = useState('#ff0000');
   const [scenes, setScenes] = useState([]);
   const [selectedScene, setSelectedScene] = useState('');
+  const [sounds, setSounds] = useState([]);
+  const [selectedSound, setSelectedSound] = useState('');
   const groups = ['All', 'Front', 'Left', 'Rear', 'Right', 'Top'];
 
   const callAPI = async (endpoint, body = {}) => {
@@ -67,12 +69,26 @@ function App() {
       }
     };
 
+    const fetchSounds = async () => {
+      try {
+        const response = await fetch('/api/available-sounds');
+        const data = await response.json();
+        setSounds(data);
+        if (data.length > 0) {
+          setSelectedSound(data[0].fileName);
+        }
+      } catch (error) {
+        console.error('Error fetching sounds:', error);
+      }
+    };
+
     fetchScenes();
+    fetchSounds();
   }, []);
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>TARDIS Lights Controller</h1>
+      <h1>Allons-z</h1>
       <div style={{ marginBottom: '10px' }}>
         <label style={{ marginRight: '10px' }}>Select Group:</label>
         <select
@@ -111,6 +127,22 @@ function App() {
         </select>
         <button onClick={() => callAPI(`/scenes/${selectedScene}/play`)} disabled={!selectedScene} style={{ marginLeft: '10px' }}>
           Run Scene
+        </button>
+      </div>
+      <div style={{ marginBottom: '10px' }}>
+        <label style={{ marginRight: '10px' }}>Select Sound:</label>
+        <select
+          value={selectedSound}
+          onChange={(e) => setSelectedSound(e.target.value)}
+          style={{ padding: '5px' }}
+          disabled={sounds.length === 0}
+        >
+          {sounds.map((sound) => (
+            <option key={sound.fileName} value={sound.fileName}>{sound.friendlyName}</option>
+          ))}
+        </select>
+        <button onClick={() => callAPI(`/play-sound/${selectedSound}`)} disabled={!selectedSound} style={{ marginLeft: '10px' }}>
+          Play Sound
         </button>
       </div>
       <button onClick={() => callAPI('/led/on')}>Turn On</button>

@@ -16,10 +16,15 @@ services:
   backend:
     build: ./backend
     container_name: tardis-backend
-    privileged: true  # For GPIO access on rPi
+    privileged: true # For GPIO access on rPi
     restart: unless-stopped
     volumes:
       - ./backend/certs:/app/certs
+    devices:
+      - "/dev/snd:/dev/snd"
+    environment:
+      - AUDIODRIVER=alsa
+      - AUDIODEV=plughw:2,0
 
   frontend:
     build: ./frontend

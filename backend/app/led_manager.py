@@ -40,30 +40,30 @@ if not REAL_HARDWARE:
     neopixel = type('MockNeoPixelModule', (), {'NeoPixel': MockNeoPixel, 'GRB': 'GRB'})()
 
 class LEDManager:
-    def __init__(self, groups, pin=board.D18):
-        self.groups_config = groups
-        self.group_ranges = {}
+    def __init__(self, sections, pin=board.D18):
+        self.sections_config = sections
+        self.section_ranges = {}
         self.num_leds = 0
         
-        # Build the group ranges
-        for group in groups:
-            count = group['count']
-            name = group['name']
+        # Build the section ranges
+        for section in sections:
+            count = section['count']
+            name = section['name']
             start = self.num_leds
             end = start + count
-            self.group_ranges[name] = (start, end)
+            self.section_ranges[name] = (start, end)
             self.num_leds += count
 
         self.pixels = neopixel.NeoPixel(pin, self.num_leds, brightness=0.2, auto_write=False)
         self.lock = threading.Lock()
 
-    def _get_range(self, group_name):
-        if group_name and group_name in self.group_ranges:
-            return self.group_ranges[group_name]
+    def _get_range(self, section_name):
+        if section_name and section_name in self.section_ranges:
+            return self.section_ranges[section_name]
         return (0, self.num_leds)
 
-    def set_color(self, color, group_name=None):
-        start, end = self._get_range(group_name)
+    def set_color(self, color, section_name=None):
+        start, end = self._get_range(section_name)
         with self.lock:
             try:
                 for i in range(start, end):
@@ -72,14 +72,14 @@ class LEDManager:
             except Exception as e:
                 print(f"Error setting LED color: {e}", file=sys.stderr, flush=True)
 
-    def turn_on(self, group_name=None):
-        self.set_color((255, 255, 255), group_name)  # White
+    def turn_on(self, section_name=None):
+        self.set_color((255, 255, 255), section_name)  # White
 
-    def turn_off(self, group_name=None):
-        self.set_color((0, 0, 0), group_name)
+    def turn_off(self, section_name=None):
+        self.set_color((0, 0, 0), section_name)
 
-    def pulse(self, color=None, duration=1.0, group_name=None):
-        start, end = self._get_range(group_name)
+    def pulse(self, color=None, duration=1.0, section_name=None):
+        start, end = self._get_range(section_name)
         
         if color is None:
             # Try to use the color of the first pixel in the range as the base
@@ -104,8 +104,8 @@ class LEDManager:
                     print(f"Error pulsing LEDs: {e}", file=sys.stderr, flush=True)
             time.sleep(duration / 20)
 
-    def fade_to(self, target_color, duration=1.0, group_name=None):
-        start, end = self._get_range(group_name)
+    def fade_to(self, target_color, duration=1.0, section_name=None):
+        start, end = self._get_range(section_name)
         steps = 50  # Number of steps for the fade
         delay = duration / steps
 
@@ -142,8 +142,8 @@ class LEDManager:
         pos -= 170
         return (pos * 3, 0, 255 - pos * 3)
 
-    def rainbow_cycle(self, duration=5.0, group_name=None):
-        start, end = self._get_range(group_name)
+    def rainbow_cycle(self, duration=5.0, section_name=None):
+        start, end = self._get_range(section_name)
         num_in_range = end - start
         start_time = time.time()
         j = 0
@@ -159,10 +159,10 @@ class LEDManager:
             j = (j + 1) % 256
             time.sleep(0.01)
         # Turn off LEDs after the cycle is complete
-        self.turn_off(group_name)
+        self.turn_off(section_name)
 
-    def cylon(self, color=(255, 0, 0), duration=2.0, group_name=None):
-        start, end = self._get_range(group_name)
+    def cylon(self, color=(255, 0, 0), duration=2.0, section_name=None):
+        start, end = self._get_range(section_name)
         num_pixels = end - start
         if num_pixels <= 0:
             return
@@ -182,4 +182,4 @@ class LEDManager:
                 self.pixels.show()
             time.sleep(step_delay)
             
-        self.turn_off(group_name)
+        self.turn_off(section_name)

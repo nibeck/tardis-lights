@@ -10,16 +10,16 @@ from .sound_manager import SoundManager
 
 app = FastAPI()
 
-# Configuration for LED Groups
-LED_GROUPS = [
-    {"name": "Front", "count": 10},
-    {"name": "Left", "count": 10},
-    {"name": "Rear", "count": 10},
-    {"name": "Right", "count": 10},
-    {"name": "Top", "count": 10}
+# Configuration for LED Sections
+LED_SECTIONS = [
+    {"name": "Front Windows", "count": 10},
+    {"name": "Left Windows", "count": 10},
+    {"name": "Rear Windows", "count": 10},
+    {"name": "Right Windows", "count": 10},
+    {"name": "Top Light", "count": 10}
 ]
 
-led_manager = LEDManager(groups=LED_GROUPS)
+led_manager = LEDManager(sections=LED_SECTIONS)
 sound_manager = SoundManager()
 scene_manager = SceneManager(led_manager)
 
@@ -27,6 +27,10 @@ class Color(BaseModel):
     r: int
     g: int
     b: int
+
+class LEDSection(BaseModel):
+    name: str
+    count: int
 
 # Add CORS middleware
 app.add_middleware(
@@ -42,31 +46,35 @@ app.add_middleware(
 def read_root():
     return {"message": "TARDIS Lights API"}
 
+@app.get("/api/led/sections", response_model=List[LEDSection])
+def get_led_sections():
+    return LED_SECTIONS
+
 @app.post("/api/led/on")
-def turn_on(group: Optional[str] = None):
-    led_manager.turn_on(group)
-    return {"status": f"LEDs turned on for {group if group else 'all'}"}
+def turn_on(section: Optional[str] = None):
+    led_manager.turn_on(section)
+    return {"status": f"LEDs turned on for {section if section else 'all'}"}
 
 @app.post("/api/led/off")
-def turn_off(group: Optional[str] = None):
-    led_manager.turn_off(group)
-    return {"status": f"LEDs turned off for {group if group else 'all'}"}
+def turn_off(section: Optional[str] = None):
+    led_manager.turn_off(section)
+    return {"status": f"LEDs turned off for {section if section else 'all'}"}
 
 @app.post("/api/led/color")
-def set_color(color: Color, group: Optional[str] = None):
-    led_manager.set_color((color.r, color.g, color.b), group)
-    return {"status": f"Color set to ({color.r}, {color.g}, {color.b}) for {group if group else 'all'}"}
+def set_color(color: Color, section: Optional[str] = None):
+    led_manager.set_color((color.r, color.g, color.b), section)
+    return {"status": f"Color set to ({color.r}, {color.g}, {color.b}) for {section if section else 'all'}"}
 
 @app.post("/api/led/pulse")
-def pulse(background_tasks: BackgroundTasks, color: Optional[Color] = None, duration: float = 1.0, group: Optional[str] = None):
+def pulse(background_tasks: BackgroundTasks, color: Optional[Color] = None, duration: float = 1.0, section: Optional[str] = None):
     c = (color.r, color.g, color.b) if color else None
-    background_tasks.add_task(led_manager.pulse, c, duration, group)
-    return {"status": f"Pulse effect applied to {group if group else 'all'}"}
+    background_tasks.add_task(led_manager.pulse, c, duration, section)
+    return {"status": f"Pulse effect applied to {section if section else 'all'}"}
 
 @app.post("/api/led/rainbow")
-def rainbow(background_tasks: BackgroundTasks, duration: float = 5.0, group: Optional[str] = None):
-    background_tasks.add_task(led_manager.rainbow_cycle, duration, group)
-    return {"status": f"Rainbow effect started on {group if group else 'all'}"}
+def rainbow(background_tasks: BackgroundTasks, duration: float = 5.0, section: Optional[str] = None):
+    background_tasks.add_task(led_manager.rainbow_cycle, duration, section)
+    return {"status": f"Rainbow effect started on {section if section else 'all'}"}
 
 @app.get("/api/scenes")
 def get_scenes():
@@ -101,6 +109,11 @@ async def get_sounds():
 def play_sound(file_name: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(sound_manager.play_sound, file_name)
     return {"status": f"Playing sound: {file_name}"}
+
+@app.post("/api/stop-sound")
+def stop_sound():
+    sound_manager.stop_sound()
+    return {"status": "Sound stopped"}
 
 # Serve the actual audio files at /sounds/filename.mp3
 if not os.path.exists("sounds"):

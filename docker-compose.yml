@@ -18,6 +18,8 @@ services:
     container_name: tardis-backend
     privileged: true # For GPIO access on rPi
     restart: unless-stopped
+    ports:
+      - "8000:8000"
     volumes:
       - ./backend/certs:/app/certs
     devices:

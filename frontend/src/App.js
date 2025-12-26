@@ -8,7 +8,7 @@ function App() {
   const [selectedScene, setSelectedScene] = useState('');
   const [sounds, setSounds] = useState([]);
   const [selectedSound, setSelectedSound] = useState('');
-  const groups = ['All', 'Front', 'Left', 'Rear', 'Right', 'Top'];
+  const [sections, setSections] = useState(['All']);
 
   const callAPI = async (endpoint, body = {}) => {
     let url = `/api${endpoint}`;
@@ -18,7 +18,7 @@ function App() {
       params.append('duration', body.duration);
     }
     if (selectedGroup !== 'All') {
-      params.append('group', selectedGroup);
+      params.append('section', selectedGroup);
     }
     const queryString = params.toString();
     if (queryString) {
@@ -55,6 +55,16 @@ function App() {
   };
 
   useEffect(() => {
+    const fetchSections = async () => {
+      try {
+        const response = await fetch('/api/led/sections');
+        const data = await response.json();
+        setSections(['All', ...data.map(s => s.name)]);
+      } catch (error) {
+        console.error('Error fetching sections:', error);
+      }
+    };
+
     const fetchScenes = async () => {
       try {
         const response = await fetch('/api/scenes');
@@ -82,6 +92,7 @@ function App() {
       }
     };
 
+    fetchSections();
     fetchScenes();
     fetchSounds();
   }, []);
@@ -90,14 +101,14 @@ function App() {
     <div style={{ padding: '20px' }}>
       <h1>Allons-z</h1>
       <div style={{ marginBottom: '10px' }}>
-        <label style={{ marginRight: '10px' }}>Select Group:</label>
+        <label style={{ marginRight: '10px' }}>Select Light:</label>
         <select
           value={selectedGroup}
           onChange={(e) => setSelectedGroup(e.target.value)}
           style={{ padding: '5px' }}
         >
-          {groups.map((group) => (
-            <option key={group} value={group}>{group}</option>
+          {sections.map((section) => (
+            <option key={section} value={section}>{section}</option>
           ))}
         </select>
       </div>
@@ -143,6 +154,9 @@ function App() {
         </select>
         <button onClick={() => callAPI(`/play-sound/${selectedSound}`)} disabled={!selectedSound} style={{ marginLeft: '10px' }}>
           Play Sound
+        </button>
+        <button onClick={() => callAPI('/stop-sound')} style={{ marginLeft: '10px' }}>
+          Stop Sound
         </button>
       </div>
       <button onClick={() => callAPI('/led/on')}>Turn On</button>

@@ -72,8 +72,10 @@ class LEDManager:
             except Exception as e:
                 print(f"Error setting LED color: {e}", file=sys.stderr, flush=True)
 
-    def turn_on(self, section_name=None):
-        self.set_color((255, 255, 255), section_name)  # White
+    def turn_on(self, section_name=None, color=None):
+        if color is None:
+            color = (255, 255, 255)  # Default to white
+        self.set_color(color, section_name)
 
     def turn_off(self, section_name=None):
         self.set_color((0, 0, 0), section_name)

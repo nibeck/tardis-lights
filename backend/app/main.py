@@ -51,8 +51,9 @@ def get_led_sections():
     return LED_SECTIONS
 
 @app.post("/api/led/on")
-def turn_on(section: Optional[str] = None):
-    led_manager.turn_on(section)
+def turn_on(color: Optional[Color] = None, section: Optional[str] = None):
+    color_tuple = (color.r, color.g, color.b) if color else None
+    led_manager.turn_on(section_name=section, color=color_tuple)
     return {"status": f"LEDs turned on for {section if section else 'all'}"}
 
 @app.post("/api/led/off")

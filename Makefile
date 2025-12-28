@@ -19,7 +19,7 @@ FULL_IMAGE_BACKEND = $(REGISTRY_URL)/$(IMAGE_BACKEND):$(VERSION)
 FULL_IMAGE_FRONTEND = $(REGISTRY_URL)/$(IMAGE_FRONTEND):$(VERSION)
 
 # .PHONY tells Make that these are commands, not files
-.PHONY: all build push deploy logs start-registry test-local stop-local
+.PHONY: all build push deploy logs start-registry test-local stop-local get-schema
 
 # Default target: Run everything in order
 all: deploy
@@ -47,7 +47,7 @@ push: build
 deploy: push start-registry
 	@echo "--- 📡 Deploying to Raspberry Pi at $(PI_HOST) ---"
 	ssh $(PI_USER)@$(PI_HOST) "mkdir -p ~/nginx"
-	scp docker-compose.prod.yml $(PI_USER)@$(PI_HOST):~/docker-compose.yml
+	scp docker-compose.yml $(PI_USER)@$(PI_HOST):~/docker-compose.yml
 	scp nginx/default.conf $(PI_USER)@$(PI_HOST):~/nginx/default.conf
 	ssh $(PI_USER)@$(PI_HOST) "docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) && \
 	docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) && \
@@ -61,6 +61,12 @@ deploy: push start-registry
 # Helper: View logs of the running services on the Pi
 logs:
 	ssh $(PI_USER)@$(PI_HOST) "docker compose logs -f"
+
+# Fetch the OpenAPI schema from the running Raspberry Pi instance
+get-schema:
+	@echo "--- 📥 Fetching OpenAPI Schema from $(PI_HOST) ---"
+	curl -o openapi.json http://$(PI_HOST)/openapi.json
+	@echo "✅ Schema saved to openapi.json"
 
 # Local test: Run containers on Mac for testing
 test-local: build

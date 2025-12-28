@@ -14,14 +14,10 @@ services:
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    image: tardis-lights-backend:latest
     container_name: tardis-backend
     privileged: true # For GPIO access on rPi
     restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/certs:/app/certs
     devices:
       - "/dev/snd:/dev/snd"
     environment:
@@ -29,7 +25,7 @@ services:
       - AUDIODEV=plughw:2,0
 
   frontend:
-    build: ./frontend
+    image: tardis-lights-frontend:latest
     container_name: tardis-frontend
     depends_on:
       - backend

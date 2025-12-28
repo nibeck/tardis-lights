@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
 
 function App() {
+  // State variables for managing application data and UI state
   const [status, setStatus] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('All');
-  const [selectedColor, setSelectedColor] = useState('#ff0000');
-  const [scenes, setScenes] = useState([]);
-  const [selectedScene, setSelectedScene] = useState('');
-  const [sounds, setSounds] = useState([]);
-  const [selectedSound, setSelectedSound] = useState('');
-  const [sections, setSections] = useState(['All']);
+  const [selectedGroup, setSelectedGroup] = useState('All'); // Currently selected LED section
+  const [selectedColor, setSelectedColor] = useState('#ff0000'); // Currently selected color (hex)
+  const [scenes, setScenes] = useState([]); // List of available lighting scenes
+  const [selectedScene, setSelectedScene] = useState(''); // Currently selected scene
+  const [sounds, setSounds] = useState([]); // List of available sound files
+  const [selectedSound, setSelectedSound] = useState(''); // Currently selected sound
+  const [sections, setSections] = useState(['All']); // List of available LED sections
 
+  // Helper function to make API calls to the backend
   const callAPI = async (endpoint, body = {}) => {
     let url = `/api${endpoint}`;
     const params = new URLSearchParams();
 
+    // Add query parameters for specific endpoints
     if (endpoint === '/led/pulse' && body.duration !== undefined) {
       params.append('duration', body.duration);
     }
+    // Add section parameter if a specific group is selected
     if (selectedGroup !== 'All') {
       params.append('section', selectedGroup);
     }
@@ -29,7 +33,8 @@ function App() {
       method: 'POST',
     };
 
-    if (endpoint === '/led/color' || endpoint === '/led/pulse') {
+    // Set headers and body for endpoints that require JSON data
+    if (endpoint === '/led/color' || endpoint === '/led/pulse' || endpoint === '/led/on') {
       options.headers = { 'Content-Type': 'application/json' };
       options.body = JSON.stringify(body);
     }
@@ -45,6 +50,7 @@ function App() {
     }
   };
 
+  // Helper function to convert hex color string to RGB object
   const hexToRgb = (hex) => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -54,7 +60,9 @@ function App() {
     } : { r: 0, g: 0, b: 0 };
   };
 
+  // Effect hook to fetch initial data when the component mounts
   useEffect(() => {
+    // Fetch available LED sections
     const fetchSections = async () => {
       try {
         const response = await fetch('/api/led/sections');
@@ -65,6 +73,7 @@ function App() {
       }
     };
 
+    // Fetch available lighting scenes
     const fetchScenes = async () => {
       try {
         const response = await fetch('/api/scenes');
@@ -79,6 +88,7 @@ function App() {
       }
     };
 
+    // Fetch available sound files
     const fetchSounds = async () => {
       try {
         const response = await fetch('/api/available-sounds');
@@ -100,6 +110,7 @@ function App() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>Allons-z</h1>
+      {/* Section Selection Dropdown */}
       <div style={{ marginBottom: '10px' }}>
         <label style={{ marginRight: '10px' }}>Select Light:</label>
         <select
@@ -112,6 +123,7 @@ function App() {
           ))}
         </select>
       </div>
+      {/* Color Picker */}
       <div style={{ marginBottom: '10px' }}>
         <label style={{ marginRight: '10px' }}>Select Color:</label>
         <input
@@ -120,6 +132,7 @@ function App() {
           onChange={(e) => setSelectedColor(e.target.value)}
         />
       </div>
+      {/* Scene Selection and Execution */}
       <div style={{ marginTop: '20px', marginBottom: '10px' }}>
         <label style={{ marginRight: '10px' }}>Select Scene:</label>
         <select
@@ -140,6 +153,7 @@ function App() {
           Run Scene
         </button>
       </div>
+      {/* Sound Selection and Playback */}
       <div style={{ marginBottom: '10px' }}>
         <label style={{ marginRight: '10px' }}>Select Sound:</label>
         <select
@@ -159,11 +173,13 @@ function App() {
           Stop Sound
         </button>
       </div>
-      <button onClick={() => callAPI('/led/on')}>Turn On</button>
+      {/* Manual LED Controls */}
+      <button onClick={() => callAPI('/led/on', hexToRgb(selectedColor))}>Turn On</button>
       <button onClick={() => callAPI('/led/off')}>Turn Off</button>
       <button onClick={() => callAPI('/led/color', hexToRgb(selectedColor))}>Set Color</button>
       <button onClick={() => callAPI('/led/pulse', hexToRgb(selectedColor))}>Pulse Color</button>
       <button onClick={() => callAPI('/led/rainbow')}>Rainbow</button>
+      {/* Status Display */}
       <p>Status: {status}</p>
     </div>
   );

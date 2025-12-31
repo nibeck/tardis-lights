@@ -13,39 +13,27 @@ function App() {
 
   // Helper function to make API calls to the backend
   const callAPI = async (endpoint, body = {}) => {
-    let url = `/api${endpoint}`;
-    const params = new URLSearchParams();
+    const url = `/api${endpoint}`;
 
-    // Add query parameters for specific endpoints
-    if (endpoint === '/led/pulse' && body.duration !== undefined) {
-      params.append('duration', body.duration);
-    }
-    // Add section parameter if a specific group is selected
+    // Prepare the unified request body
+    const requestBody = { ...body };
     if (selectedGroup !== 'All') {
-      params.append('section', selectedGroup);
-    }
-    const queryString = params.toString();
-    if (queryString) {
-      url += `?${queryString}`;
+      requestBody.section = selectedGroup;
     }
 
     const options = {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody),
     };
-
-    // Set headers and body for endpoints that require JSON data
-    if (endpoint === '/led/color' || endpoint === '/led/pulse' || endpoint === '/led/on') {
-      options.headers = { 'Content-Type': 'application/json' };
-      options.body = JSON.stringify(body);
-    }
 
     try {
       const response = await fetch(url, options);
       const data = await response.json();
-      console.log('API Response:', data);  // Debug: log the full response
-      setStatus(data.status || JSON.stringify(data));  // Fallback to full data if no status
+      console.log('API Response:', data);
+      setStatus(data.status || JSON.stringify(data));
     } catch (error) {
-      console.error('API Error:', error);  // Debug: log the error
+      console.error('API Error:', error);
       setStatus('Error: ' + error.message);
     }
   };
@@ -174,11 +162,11 @@ function App() {
         </button>
       </div>
       {/* Manual LED Controls */}
-      <button onClick={() => callAPI('/led/on', hexToRgb(selectedColor))}>Turn On</button>
+      <button onClick={() => callAPI('/led/on', { color: hexToRgb(selectedColor) })}>Turn On</button>
       <button onClick={() => callAPI('/led/off')}>Turn Off</button>
-      <button onClick={() => callAPI('/led/color', hexToRgb(selectedColor))}>Set Color</button>
-      <button onClick={() => callAPI('/led/pulse', hexToRgb(selectedColor))}>Pulse Color</button>
-      <button onClick={() => callAPI('/led/rainbow')}>Rainbow</button>
+      <button onClick={() => callAPI('/led/color', { color: hexToRgb(selectedColor) })}>Set Color</button>
+      <button onClick={() => callAPI('/led/pulse', { color: hexToRgb(selectedColor), duration: 1.0 })}>Pulse Color</button>
+      <button onClick={() => callAPI('/led/rainbow', { duration: 5.0 })}>Rainbow</button>
       {/* Status Display */}
       <p>Status: {status}</p>
     </div>

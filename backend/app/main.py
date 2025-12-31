@@ -10,6 +10,31 @@ from .sound_manager import SoundManager
 
 app = FastAPI()
 
+class Color(BaseModel):
+    r: int
+    g: int
+    b: int
+
+class TurnOnRequest(BaseModel):
+    color: Optional[Color] = None
+    section: str = ""
+
+class PulseRequest(BaseModel):
+    color: Optional[Color] = None
+    duration: float = 1.0
+    section: str = ""
+
+class SetColorRequest(BaseModel):
+    color: Color
+    section: str = ""
+
+class TurnOffRequest(BaseModel):
+    section: str = ""
+
+class RainbowRequest(BaseModel):
+    duration: float = 5.0
+    section: str = ""
+
 # Configuration for LED Sections
 LED_SECTIONS = [
     {"name": "Front Windows", "count": 10},
@@ -22,11 +47,6 @@ LED_SECTIONS = [
 led_manager = LEDManager(sections=LED_SECTIONS)
 sound_manager = SoundManager()
 scene_manager = SceneManager(led_manager)
-
-class Color(BaseModel):
-    r: int
-    g: int
-    b: int
 
 class LEDSection(BaseModel):
     name: str
@@ -51,31 +71,37 @@ def get_led_sections():
     return LED_SECTIONS
 
 @app.post("/api/led/on")
-def turn_on(color: Optional[Color] = None, section: Optional[str] = None):
-    color_tuple = (color.r, color.g, color.b) if color else None
-    led_manager.turn_on(section_name=section, color=color_tuple)
-    return {"status": f"LEDs turned on for {section if section else 'all'}"}
+def turn_on(request: TurnOnRequest):
+    color_tuple = (
+        (request.color.r, request.color.g, request.color.b)
+        if request.color else None
+    )
+    led_manager.turn_on(
+        section_name=request.section,
+        color=color_tuple
+    )
+    return {"status": f"LEDs turned on for {request.section if request.section else 'all'}"}
 
 @app.post("/api/led/off")
-def turn_off(section: Optional[str] = None):
-    led_manager.turn_off(section)
-    return {"status": f"LEDs turned off for {section if section else 'all'}"}
+def turn_off(request: TurnOffRequest):
+    led_manager.turn_off(request.section)
+    return {"status": f"LEDs turned off for {request.section if request.section else 'all'}"}
 
 @app.post("/api/led/color")
-def set_color(color: Color, section: Optional[str] = None):
-    led_manager.set_color((color.r, color.g, color.b), section)
-    return {"status": f"Color set to ({color.r}, {color.g}, {color.b}) for {section if section else 'all'}"}
+def set_color(request: SetColorRequest):
+    led_manager.set_color((request.color.r, request.color.g, request.color.b), request.section)
+    return {"status": f"Color set to ({request.color.r}, {request.color.g}, {request.color.b}) for {request.section if request.section else 'all'}"}
 
 @app.post("/api/led/pulse")
-def pulse(background_tasks: BackgroundTasks, color: Optional[Color] = None, duration: float = 1.0, section: Optional[str] = None):
-    c = (color.r, color.g, color.b) if color else None
-    background_tasks.add_task(led_manager.pulse, c, duration, section)
-    return {"status": f"Pulse effect applied to {section if section else 'all'}"}
+def pulse(request: PulseRequest, background_tasks: BackgroundTasks):
+    c = (request.color.r, request.color.g, request.color.b) if request.color else None
+    background_tasks.add_task(led_manager.pulse, c, request.duration, request.section)
+    return {"status": f"Pulse effect applied to {request.section if request.section else 'all'}"}
 
 @app.post("/api/led/rainbow")
-def rainbow(background_tasks: BackgroundTasks, duration: float = 5.0, section: Optional[str] = None):
-    background_tasks.add_task(led_manager.rainbow_cycle, duration, section)
-    return {"status": f"Rainbow effect started on {section if section else 'all'}"}
+def rainbow(request: RainbowRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(led_manager.rainbow_cycle, request.duration, request.section)
+    return {"status": f"Rainbow effect started on {request.section if request.section else 'all'}"}
 
 @app.get("/api/scenes")
 def get_scenes():

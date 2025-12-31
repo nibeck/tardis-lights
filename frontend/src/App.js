@@ -169,6 +169,17 @@ function App() {
       <button onClick={() => callAPI('/led/rainbow', { duration: 5.0 })}>Rainbow</button>
       {/* Status Display */}
       <p>Status: {status}</p>
+
+      {/* Footer with Build Info */}
+      <div style={{
+        marginTop: '40px',
+        fontSize: '12px',
+        color: '#666',
+        borderTop: '1px solid #eee',
+        paddingTop: '10px'
+      }}>
+        Build: {process.env.REACT_APP_BUILD_ID} | {process.env.REACT_APP_BUILD_DATE}
+      </div>
     </div>
   );
 }

@@ -5,6 +5,8 @@ IMAGE_FRONTEND = tardis-lights-frontend
 VERSION = latest
 APP_PORT_BACKEND = 8000
 APP_PORT_FRONTEND = 3000
+BUILD_ID = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # --- Raspberry Pi Details ---
 PI_USER = pi
@@ -32,7 +34,7 @@ start-registry:
 # Step 1: Build the images on your Mac
 build:
 	@echo "--- 🏗️   Building Images ---"
-	DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose build
+	DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose build --build-arg BUILD_ID=$(BUILD_ID) --build-arg BUILD_DATE=$(BUILD_DATE)
 	@echo "--- 🏷️   Tagging Images for Registry ---"
 	docker tag $(IMAGE_BACKEND):$(VERSION) $(FULL_IMAGE_BACKEND)
 	docker tag $(IMAGE_FRONTEND):$(VERSION) $(FULL_IMAGE_FRONTEND)

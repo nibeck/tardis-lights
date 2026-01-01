@@ -48,6 +48,19 @@ function App() {
     } : { r: 0, g: 0, b: 0 };
   };
 
+  // Helper function to format date as MM/DD/YY. HH:MM:SS
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+
+    const pad = (num) => num.toString().padStart(2, '0');
+    const datePart = `${pad(date.getMonth() + 1)}/${pad(date.getDate())}/${date.getFullYear().toString().slice(-2)}`;
+    const timePart = `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
+    return `${datePart}. ${timePart}`;
+  };
+
   // Effect hook to fetch initial data when the component mounts
   useEffect(() => {
     // Fetch available LED sections
@@ -79,14 +92,20 @@ function App() {
     // Fetch available sound files
     const fetchSounds = async () => {
       try {
-        const response = await fetch('/api/available-sounds');
+        const response = await fetch('/api/sounds');
         const data = await response.json();
-        setSounds(data);
-        if (data.length > 0) {
-          setSelectedSound(data[0].fileName);
+        if (Array.isArray(data)) {
+          setSounds(data);
+          if (data.length > 0) {
+            setSelectedSound(data[0].fileName);
+          }
+        } else {
+          console.error('Sounds API returned non-array:', data);
+          setSounds([]);
         }
       } catch (error) {
         console.error('Error fetching sounds:', error);
+        setSounds([]);
       }
     };
 
@@ -150,7 +169,7 @@ function App() {
           style={{ padding: '5px' }}
           disabled={sounds.length === 0}
         >
-          {sounds.map((sound) => (
+          {Array.isArray(sounds) && sounds.map((sound) => (
             <option key={sound.fileName} value={sound.fileName}>{sound.friendlyName}</option>
           ))}
         </select>
@@ -178,7 +197,7 @@ function App() {
         borderTop: '1px solid #eee',
         paddingTop: '10px'
       }}>
-        Build: {process.env.REACT_APP_BUILD_ID} | {process.env.REACT_APP_BUILD_DATE}
+        Build: {process.env.REACT_APP_BUILD_ID} | {formatDate(process.env.REACT_APP_BUILD_DATE)}
       </div>
     </div>
   );

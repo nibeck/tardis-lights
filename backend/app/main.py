@@ -119,18 +119,9 @@ class Sound(BaseModel):
     fileName: str
     friendlyName: str
 
-@app.get("/api/available-sounds", response_model=List[Sound])
+@app.get("/api/sounds", response_model=List[Sound])
 async def get_sounds():
-    sounds = []
-    sounds_dir = "sounds"
-    if os.path.exists(sounds_dir):
-        for filename in os.listdir(sounds_dir):
-            if filename.lower().endswith(('.mp3', '.wav', '.ogg', '.m4a')):
-                name_without_ext = os.path.splitext(filename)[0]
-                friendly_name = name_without_ext.replace("_", " ").replace("-", " ").title()
-                sounds.append(Sound(fileName=filename, friendlyName=friendly_name))
-    sounds.sort(key=lambda x: x.friendlyName)
-    return sounds
+    return sound_manager.get_available_sounds()
 
 @app.post("/api/play-sound/{file_name}")
 def play_sound(file_name: str, background_tasks: BackgroundTasks):

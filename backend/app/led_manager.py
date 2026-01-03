@@ -15,6 +15,7 @@ except (ImportError, NotImplementedError, Exception) as e:
 if not REAL_HARDWARE:
     # Mock for development on non-rPi systems
     class MockNeoPixel:
+        """Mock implementation of the NeoPixel class for testing and development."""
         def __init__(self, pin, num, brightness=1.0, auto_write=True, pixel_order=None):
             self.num = num
             self.brightness = brightness
@@ -35,12 +36,21 @@ if not REAL_HARDWARE:
 
     # Create mock board and neopixel modules
     class MockBoard:
+        """Mock implementation of the board module for non-Raspberry Pi environments."""
         D18 = "D18"
     board = MockBoard()
     neopixel = type('MockNeoPixelModule', (), {'NeoPixel': MockNeoPixel, 'GRB': 'GRB'})()
 
 class LEDManager:
+    """Manages LED strips and sections for the TARDIS lights system."""
     def __init__(self, sections, pin=board.D18):
+        """
+        Initialize the LEDManager.
+
+        Args:
+            sections (list): A list of dictionaries defining LED sections (e.g., [{'name': 'top', 'count': 10}]).
+            pin (board.Pin): The GPIO pin connected to the LED strip.
+        """
         self.sections_config = sections
         self.section_ranges = {}
         self.num_leds = 0
@@ -58,11 +68,27 @@ class LEDManager:
         self.lock = threading.Lock()
 
     def _get_range(self, section_name):
+        """
+        Helper to get the start and end pixel indices for a given section name.
+
+        Args:
+            section_name (str, optional): The name of the section. If None, returns the full range.
+
+        Returns:
+            tuple: (start_index, end_index)
+        """
         if section_name and section_name in self.section_ranges:
             return self.section_ranges[section_name]
         return (0, self.num_leds)
 
     def set_color(self, color, section_name=None):
+        """
+        Set the color of a specific section or the entire strip.
+
+        Args:
+            color (tuple): The RGB color tuple (r, g, b).
+            section_name (str, optional): The name of the section to set. If None, sets the entire strip.
+        """
         start, end = self._get_range(section_name)
         with self.lock:
             try:
@@ -73,14 +99,35 @@ class LEDManager:
                 print(f"Error setting LED color: {e}", file=sys.stderr, flush=True)
 
     def turn_on(self, section_name=None, color=None):
+        """
+        Turn on a section or the entire strip with a specific color.
+
+        Args:
+            section_name (str, optional): The name of the section to turn on.
+            color (tuple, optional): The RGB color tuple. Defaults to white (255, 255, 255).
+        """
         if color is None:
             color = (255, 255, 255)  # Default to white
         self.set_color(color, section_name)
 
     def turn_off(self, section_name=None):
+        """
+        Turn off a section or the entire strip (set to black).
+
+        Args:
+            section_name (str, optional): The name of the section to turn off.
+      """
         self.set_color((0, 0, 0), section_name)
 
     def pulse(self, color=None, duration=1.0, section_name=None):
+        """
+        Create a pulsing light effect on a section or the entire strip.
+
+        Args:
+            color (tuple, optional): The base RGB color to pulse. If None, attempts to use current color.
+            duration (float, optional): The duration of the pulse in seconds.
+            section_name (str, optional): The name of the section to pulse.
+        """
         start, end = self._get_range(section_name)
         
         if color is None:
@@ -107,6 +154,14 @@ class LEDManager:
             time.sleep(duration / 20)
 
     def fade_to(self, target_color, duration=1.0, section_name=None):
+        """
+        Gradually fade from the current color to a target color.
+
+        Args:
+            target_color (tuple): The target RGB color tuple.
+            duration (float, optional): The duration of the fade in seconds.
+            section_name (str, optional): The name of the section to fade.
+        """
         start, end = self._get_range(section_name)
         steps = 50  # Number of steps for the fade
         delay = duration / steps
@@ -132,8 +187,10 @@ class LEDManager:
             time.sleep(delay)
 
     def wheel(self, pos):
-        # Input a value 0 to 255 to get a color value.
-        # The colours are a transition r - g - b - back to r.
+        """
+        Input a value 0 to 255 to get a color value.
+        The colours are a transition r - g - b - back to r.
+        """
         if pos < 0 or pos > 255:
             return (0, 0, 0)
         if pos < 85:
@@ -145,6 +202,13 @@ class LEDManager:
         return (pos * 3, 0, 255 - pos * 3)
 
     def rainbow_cycle(self, duration=5.0, section_name=None):
+        """
+        Cycle through all rainbow colors across the specified section.
+
+        Args:
+            duration (float, optional): How long to run the cycle in seconds.
+            section_name (str, optional): The name of the section.
+        """
         start, end = self._get_range(section_name)
         num_in_range = end - start
         start_time = time.time()
@@ -164,6 +228,14 @@ class LEDManager:
         self.turn_off(section_name)
 
     def cylon(self, color=(255, 0, 0), duration=2.0, section_name=None):
+        """
+        Create a Cylon-style back-and-forth "scanner" effect.
+
+        Args:
+            color (tuple, optional): The RGB color of the scanner. Defaults to red.
+            duration (float, optional): The duration of the effect in seconds.
+            section_name (str, optional): The name of the section.
+        """
         start, end = self._get_range(section_name)
         num_pixels = end - start
         if num_pixels <= 0:

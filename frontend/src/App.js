@@ -81,7 +81,7 @@ function App() {
         const data = await response.json();
         if (data.scenes && data.scenes.length > 0) {
           setScenes(data.scenes);
-          setSelectedScene(data.scenes[0]);
+          setSelectedScene(data.scenes[0].name);
         }
       } catch (error) {
         console.error('Error fetching scenes:', error);
@@ -152,7 +152,7 @@ function App() {
             <option>Loading...</option>
           ) : (
             scenes.map((scene) => (
-              <option key={scene} value={scene}>{scene}</option>
+              <option key={scene.name} value={scene.name} title={scene.description}>{scene.name}</option>
             ))
           )}
         </select>

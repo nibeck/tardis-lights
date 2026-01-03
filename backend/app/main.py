@@ -1,4 +1,4 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -35,14 +35,27 @@ class RainbowRequest(BaseModel):
     duration: float = 5.0
     section: str = ""
 
+class Scene(BaseModel):
+    name: str
+    description: str
+
+class SceneList(BaseModel):
+    scenes: List[Scene]
+
 # Configuration for LED Sections
 LED_SECTIONS = [
-    {"name": "Front Windows", "count": 10},
-    {"name": "Left Windows", "count": 10},
-    {"name": "Rear Windows", "count": 10},
-    {"name": "Right Windows", "count": 10},
-    {"name": "Top Light", "count": 10}
+    {"name": "Front Windows", "count": 1},
+    {"name": "Left Windows", "count": 1},
+    {"name": "Rear Windows", "count": 1},
+    {"name": "Right Windows", "count": 1},
+    {"name": "Front Police", "count": 1},
+    {"name": "Left Police", "count": 1},
+    {"name": "Rear Police", "count": 1},
+    {"name": "Right Police", "count": 1},
+    {"name": "Top Light", "count": 1},
+    {"name": "Extra", "count": 1}
 ]
+
 
 led_manager = LEDManager(sections=LED_SECTIONS)
 sound_manager = SoundManager()
@@ -103,14 +116,23 @@ def rainbow(request: RainbowRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(led_manager.rainbow_cycle, request.duration, request.section)
     return {"status": f"Rainbow effect started on {request.section if request.section else 'all'}"}
 
-@app.get("/api/scenes")
+@app.get("/api/scenes", response_model=SceneList)
 def get_scenes():
-    return {"scenes": scene_manager.get_scene_names()}
+    return {"scenes": scene_manager.get_scenes()}
 
 @app.post("/api/scenes/{scene_name}/play")
 def play_scene(scene_name: str, background_tasks: BackgroundTasks):
     background_tasks.add_task(scene_manager.play_scene, scene_name)
     return {"status": f"Playing scene: {scene_name}"}
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        pass
 
 # --- Sound Endpoints ---
 

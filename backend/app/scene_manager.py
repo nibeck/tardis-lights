@@ -5,28 +5,44 @@ from .led_manager import LEDManager
 
 # Scene Definitions
 SCENE_DEFS = {
-    "Welcome": [
-        {"action": "set_color", "args": [(0, 0, 255)]},
-        {"action": "wait", "args": [0.5]},
-        {"action": "fade_to", "args": [(0, 255, 0)], "kwargs": {"duration": 1.5}},
-        {"action": "wait", "args": [0.5]},
-        {"action": "fade_to", "args": [(255, 0, 0)], "kwargs": {"duration": 1.5}},
-        {"action": "wait", "args": [0.5]},
-        {"action": "turn_off", "kwargs": {"section_name": None}},
-    ],
-    "Red Alert": [
-        {"action": "set_color", "args": [(255, 0, 0)]},
-        {"action": "pulse", "kwargs": {"duration": 0.5}},
-        {"action": "pulse", "kwargs": {"duration": 0.5}},
-        {"action": "pulse", "kwargs": {"duration": 0.5}},
-        {"action": "turn_off", "kwargs": {"section_name": None}},
-    ],
-    "Flash Sections": [
-        {"action": "flash_sections_randomly", "kwargs": {"flashes": 3, "delay": 0.15}}
-    ],
-    "Cylon": [
-        {"action": "cylon", "kwargs": {"color": (255, 0, 0), "duration": 2.0}}
-    ],
+    "Welcome": {
+        "name": "Welcome",
+        "description": "Blue to Green to Red fade sequence",
+        "steps": [
+            {"action": "set_color", "args": [(0, 0, 255)]},
+            {"action": "wait", "args": [0.5]},
+            {"action": "fade_to", "args": [(0, 255, 0)], "kwargs": {"duration": 1.5}},
+            {"action": "wait", "args": [0.5]},
+            {"action": "fade_to", "args": [(255, 0, 0)], "kwargs": {"duration": 1.5}},
+            {"action": "wait", "args": [0.5]},
+            {"action": "turn_off", "kwargs": {"section_name": None}},
+        ]
+    },
+    "Red Alert": {
+        "name": "Red Alert",
+        "description": "Flashing red alert signal",
+        "steps": [
+            {"action": "set_color", "args": [(255, 0, 0)]},
+            {"action": "pulse", "kwargs": {"duration": 0.5}},
+            {"action": "pulse", "kwargs": {"duration": 0.5}},
+            {"action": "pulse", "kwargs": {"duration": 0.5}},
+            {"action": "turn_off", "kwargs": {"section_name": None}},
+        ]
+    },
+    "Flash Sections": {
+        "name": "Flash Sections",
+        "description": "Randomly flashes different sections",
+        "steps": [
+            {"action": "flash_sections_randomly", "kwargs": {"flashes": 3, "delay": 0.15}}
+        ]
+    },
+    "Cylon": {
+        "name": "Cylon",
+        "description": "Cylon eye scanning effect",
+        "steps": [
+            {"action": "cylon", "kwargs": {"color": (255, 0, 0), "duration": 2.0}}
+        ]
+    },
 }
 
 class SceneManager:
@@ -47,15 +63,16 @@ class SceneManager:
                 time.sleep(delay)
             time.sleep(0.2) # Pause between sections
 
-    def get_scene_names(self):
-        return list(SCENE_DEFS.keys())
+    def get_scenes(self):
+        return [{"name": data.get("name", name), "description": data.get("description", "")} for name, data in SCENE_DEFS.items()]
 
     def play_scene(self, scene_name: str):
         if scene_name not in SCENE_DEFS:
             print(f"Error: Scene '{scene_name}' not found.", file=sys.stderr, flush=True)
             return
 
-        actions = SCENE_DEFS[scene_name]
+        scene_data = SCENE_DEFS[scene_name]
+        actions = scene_data.get("steps", [])
         for step in actions:
             action_name = step["action"]
             args = step.get("args", [])

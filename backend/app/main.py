@@ -15,6 +15,13 @@ from .led_manager import LEDManager, REAL_HARDWARE
 from .scene_manager import SceneManager
 from .sound_manager import SoundManager
 
+if os.getenv("ENABLE_DEBUGGER", "").lower() in ("true", "1", "yes"):
+    import debugpy
+    debugpy.listen(("0.0.0.0", 5678))
+    print("DEBUGGER: Waiting for debugger attach on port 5678...", flush=True)
+    # debugpy.wait_for_client() # Uncomment if you want to block until attached
+
+
 app = FastAPI()
 
 class Color(BaseModel):
@@ -63,10 +70,10 @@ LED_SECTIONS = [
     {"name": "Left Windows", "count": 1},
     {"name": "Rear Windows", "count": 1},
     {"name": "Right Windows", "count": 1},
-    {"name": "Front Police", "count": 1},
-    {"name": "Left Police", "count": 1},
-    {"name": "Rear Police", "count": 1},
-    {"name": "Right Police", "count": 1},
+    {"name": "Front Police Sign", "count": 1},
+    {"name": "Left Police Sign", "count": 1},
+    {"name": "Rear Police Sign", "count": 1},
+    {"name": "Right Police Sign", "count": 1},
     {"name": "Top Light", "count": 1},
     {"name": "Extra", "count": 1}
 ]

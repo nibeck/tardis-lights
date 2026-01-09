@@ -17,12 +17,15 @@ services:
     image: tardis-lights-backend:latest
     container_name: tardis-backend
     privileged: true # For GPIO access on rPi
+    ports:
+      - "5678:5678"
     restart: unless-stopped
     devices:
       - "/dev/snd:/dev/snd"
     environment:
       - AUDIODRIVER=alsa
       - AUDIODEV=plughw:2,0
+      - ENABLE_DEBUGGER=${ENABLE_DEBUGGER:-False}
 
   frontend:
     image: tardis-lights-frontend:latest

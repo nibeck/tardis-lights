@@ -7,6 +7,8 @@ APP_PORT_BACKEND = 8000
 APP_PORT_FRONTEND = 3000
 BUILD_ID = $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE = $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+ENABLE_DEBUGGER = False
+
 
 # --- Raspberry Pi Details ---
 PI_USER = pi
@@ -55,7 +57,7 @@ deploy: push start-registry
 	docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) && \
 	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND):$(VERSION) && \
 	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_FRONTEND):$(VERSION) $(IMAGE_FRONTEND):$(VERSION) && \
-	docker compose down && docker compose up -d"
+	docker compose down && ENABLE_DEBUGGER=$(ENABLE_DEBUGGER) docker compose up -d"
 	@echo "--- ✅ Deployment Complete! ---"
 	@echo "View App:      http://$(PI_HOST) (frontend)"
 	@echo "View Backend:  http://$(PI_HOST) (backend)"

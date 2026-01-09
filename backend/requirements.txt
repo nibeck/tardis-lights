@@ -3,3 +3,4 @@ uvicorn[standard]==0.24.0
 adafruit-circuitpython-neopixel
 rpi-lgpio
 Adafruit-Blinka-Raspberry-Pi5-Neopixel
+debugpy

@@ -13,4 +13,4 @@ COPY app ./app
 COPY test_leds_rpi.py .
 COPY sounds ./sounds
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-Xfrozen_modules=off", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

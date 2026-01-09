@@ -15,12 +15,12 @@ from .led_manager import LEDManager, REAL_HARDWARE
 from .scene_manager import SceneManager
 from .sound_manager import SoundManager
 
+
 if os.getenv("ENABLE_DEBUGGER", "").lower() in ("true", "1", "yes"):
     import debugpy
     debugpy.listen(("0.0.0.0", 5678))
     print("DEBUGGER: Waiting for debugger attach on port 5678...", flush=True)
     # debugpy.wait_for_client() # Uncomment if you want to block until attached
-
 
 app = FastAPI()
 
@@ -55,6 +55,55 @@ class RainbowRequest(BaseModel):
     duration: float = 5.0
     section: str = ""
 
+class FadeToColorRequest(BaseModel):
+    """Request schema for fading to a specific color."""
+    section: str = ""
+    color: Color
+    duration: float = 1.0
+
+class BreathRequest(BaseModel):
+    """Request schema for the breath effect."""
+    section: str = ""
+    color: Color
+    period: float = 5.0
+    count: int = 3
+
+class WipeRequest(BaseModel):
+    """Request schema for the wipe effect."""
+    section: str = ""
+    color: Color
+    direction: str = "forward"
+    speed: float = 0.1
+
+class ChaseRequest(BaseModel):
+    """Request schema for the chase effect."""
+    section: str = ""
+    color: Color
+    spacing: int = 3
+    speed: float = 0.1
+    count: int = 50
+
+class SparkleRequest(BaseModel):
+    """Request schema for the sparkle effect."""
+    section: str = ""
+    color: Color
+    density: int = 5
+    duration: float = 5.0
+
+class FlickerRequest(BaseModel):
+    """Request schema for the flicker effect."""
+    section: str = ""
+    color: Color
+    intensity: float = 0.5
+    duration: float = 5.0
+
+class StrobeRequest(BaseModel):
+    """Request schema for the strobe effect."""
+    section: str = ""
+    color: Color
+    frequency: float = 10.0
+    duration: float = 5.0
+
 class Scene(BaseModel):
     """Represents an animated scene with a name and description."""
     name: str
@@ -70,10 +119,10 @@ LED_SECTIONS = [
     {"name": "Left Windows", "count": 1},
     {"name": "Rear Windows", "count": 1},
     {"name": "Right Windows", "count": 1},
-    {"name": "Front Police Sign", "count": 1},
-    {"name": "Left Police Sign", "count": 1},
-    {"name": "Rear Police Sign", "count": 1},
-    {"name": "Right Police Sign", "count": 1},
+    {"name": "Front Police", "count": 1},
+    {"name": "Left Police", "count": 1},
+    {"name": "Rear Police", "count": 1},
+    {"name": "Right Police", "count": 1},
     {"name": "Top Light", "count": 1},
     {"name": "Extra", "count": 1}
 ]
@@ -157,6 +206,55 @@ def rainbow(request: RainbowRequest, background_tasks: BackgroundTasks):
     """
     background_tasks.add_task(led_manager.rainbow_cycle, request.duration, request.section)
     return {"status": f"Rainbow effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/fade")
+def fade_to_color(request: FadeToColorRequest, background_tasks: BackgroundTasks):
+    """Smoothly fade to a specific color."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.fade_to_color, request.section, c, request.duration)
+    return {"status": f"Fade started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/breath")
+def breath(request: BreathRequest, background_tasks: BackgroundTasks):
+    """Start a breathing effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.breath, request.section, c, request.period, request.count)
+    return {"status": f"Breath effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/wipe")
+def wipe(request: WipeRequest, background_tasks: BackgroundTasks):
+    """Start a wipe effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.wipe, request.section, c, request.direction, request.speed)
+    return {"status": f"Wipe effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/chase")
+def chase(request: ChaseRequest, background_tasks: BackgroundTasks):
+    """Start a chase effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.chase, request.section, c, request.spacing, request.speed, request.count)
+    return {"status": f"Chase effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/sparkle")
+def sparkle(request: SparkleRequest, background_tasks: BackgroundTasks):
+    """Start a sparkle effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.sparkle, request.section, c, request.density, request.duration)
+    return {"status": f"Sparkle effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/flicker")
+def flicker(request: FlickerRequest, background_tasks: BackgroundTasks):
+    """Start a flicker effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.flicker, request.section, c, request.intensity, request.duration)
+    return {"status": f"Flicker effect started on {request.section if request.section else 'all'}"}
+
+@app.post("/api/led/strobe")
+def strobe(request: StrobeRequest, background_tasks: BackgroundTasks):
+    """Start a strobe effect."""
+    c = (request.color.r, request.color.g, request.color.b)
+    background_tasks.add_task(led_manager.strobe, request.section, c, request.frequency, request.duration)
+    return {"status": f"Strobe effect started on {request.section if request.section else 'all'}"}
 
 @app.get("/api/scenes", response_model=SceneList)
 def get_scenes():

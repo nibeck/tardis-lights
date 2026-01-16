@@ -162,7 +162,6 @@ const SectionRow = ({ section, onCall }) => {
 function App() {
   // State variables for managing application data and UI state
   const [status, setStatus] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState('All'); // Currently selected LED section
   const [scenes, setScenes] = useState([]); // List of available lighting scenes
   const [selectedScene, setSelectedScene] = useState(''); // Currently selected scene
   const [sounds, setSounds] = useState([]); // List of available sound files
@@ -175,9 +174,6 @@ function App() {
 
     // Prepare the unified request body
     const requestBody = { ...body };
-    if (selectedGroup !== 'All' && requestBody.section === undefined) {
-      requestBody.section = selectedGroup;
-    }
 
     const options = {
       method: 'POST',
@@ -277,20 +273,6 @@ function App() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>Allons-z</h1>
-      {/* Section Selection Dropdown */}
-      <div style={{ marginBottom: '10px' }}>
-        <label htmlFor="select-light" style={{ marginRight: '10px' }}>Select Light:</label>
-        <select
-          id="select-light"
-          value={selectedGroup}
-          onChange={(e) => setSelectedGroup(e.target.value)}
-          style={{ padding: '5px' }}
-        >
-          {sections.map((section) => (
-            <option key={section} value={section}>{section}</option>
-          ))}
-        </select>
-      </div>
       {/* Scene Selection and Execution */}
       <div style={{ marginTop: '20px', marginBottom: '10px' }}>
         <label htmlFor="select-scene" style={{ marginRight: '10px' }}>Select Scene:</label>

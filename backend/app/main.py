@@ -114,18 +114,34 @@ class SceneList(BaseModel):
     scenes: List[Scene]
 
 # Configuration for LED Sections
+# Full String
+#LED_SECTIONS = [
+#    {"name": "Left Windows", "count": 195},
+#    {"name": "Rear Windows", "count": 110},
+#   {"name": "Left Police", "count": 100},
+#   {"name": "Right Windows", "count": 0},
+#   {"name": "Front Police", "count": 0},
+#    {"name": "Front Windows", "count": 0},
+#    {"name": "Rear Police", "count": 0},
+#    {"name": "Right Police", "count": 0},
+#   {"name": "Top Light", "count": 0},
+#    {"name": "Extra", "count": 0}
+#]
+
+#Short string for testing 
 LED_SECTIONS = [
-    {"name": "Front Windows", "count": 1},
-    {"name": "Left Windows", "count": 1},
-    {"name": "Rear Windows", "count": 1},
-    {"name": "Right Windows", "count": 1},
-    {"name": "Front Police", "count": 1},
-    {"name": "Left Police", "count": 1},
-    {"name": "Rear Police", "count": 1},
-    {"name": "Right Police", "count": 1},
-    {"name": "Top Light", "count": 1},
-    {"name": "Extra", "count": 1}
+    {"name": "Left Windows", "count": 2},
+    {"name": "Rear Windows", "count": 2},
+    {"name": "Left Police", "count": 2},
+    {"name": "Right Windows", "count": 2},
+    {"name": "Front Police", "count": 2},
+    {"name": "Front Windows", "count": 2},
+    {"name": "Rear Police", "count": 2},
+    {"name": "Right Police", "count": 2},
+    {"name": "Top Light", "count": 2},
+    {"name": "Extra", "count": 0}
 ]
+
 
 led_manager = LEDManager(sections=LED_SECTIONS)
 sound_manager = SoundManager()
@@ -314,3 +330,10 @@ def stop_sound():
 if not os.path.exists("sounds"):
     os.makedirs("sounds")
 app.mount("/sounds", StaticFiles(directory="sounds"), name="sounds")
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+

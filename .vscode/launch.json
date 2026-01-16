@@ -6,7 +6,7 @@
             "type": "python",
             "request": "attach",
             "connect": {
-                "host": "192.168.1.161",
+                "host": "tardis.local",
                 "port": 5678
             },
             "pathMappings": [

@@ -12,7 +12,7 @@ ENABLE_DEBUGGER = False
 
 # --- Raspberry Pi Details ---
 PI_USER = pi
-PI_HOST = 192.168.1.161
+PI_HOST = tardis.local
 REGISTRY_PORT = 5001
 # NOTE: This command is for macOS. For Linux, use: $(shell hostname -I | awk '{print $$1}')
 MAC_IP = $(shell ipconfig getifaddr en0)

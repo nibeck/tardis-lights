@@ -319,13 +319,6 @@ function App() {
       
       <h2>Section Control</h2>
       <div style={{ marginBottom: '20px' }}>
-        <button
-          type="button"
-          onClick={() => callAPI('/led/off', { section: '' })}
-          style={{ marginBottom: '10px', padding: '5px 10px', cursor: 'pointer' }}
-        >
-          All Off
-        </button>
         {sections.map((section) => (
           <SectionRow key={section} section={section} onCall={callAPI} />
         ))}

@@ -128,6 +128,15 @@ class SceneList(BaseModel):
 #    {"name": "Extra", "count": 0}
 #]
 
+#full string for real sizes 
+# LED_SECTIONS = [
+#     {"name": "Left Window", "count": 283},
+#     {"name": "Spacer 1", "count": 17},
+#     {"name": "Left Police", "count": 166},
+#     {"name": "Rear Window","count": 348},
+#     {"name": "Rear Police", "count": 83}
+# ]
+
 #Short string for testing 
 LED_SECTIONS = [
     {"name": "Left Windows", "count": 2},

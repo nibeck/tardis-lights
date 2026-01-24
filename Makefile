@@ -16,6 +16,7 @@ PI_HOST = tardis.local
 REGISTRY_PORT = 5001
 # NOTE: This command is for macOS. For Linux, use: $(shell hostname -I | awk '{print $$1}')
 MAC_IP = $(shell ipconfig getifaddr en0)
+#MAC_IP = 192.168.1.209
 
 # --- Derived Variables (Do not edit) ---
 REGISTRY_URL = localhost:$(REGISTRY_PORT)
@@ -23,7 +24,7 @@ FULL_IMAGE_BACKEND = $(REGISTRY_URL)/$(IMAGE_BACKEND):$(VERSION)
 FULL_IMAGE_FRONTEND = $(REGISTRY_URL)/$(IMAGE_FRONTEND):$(VERSION)
 
 # .PHONY tells Make that these are commands, not files
-.PHONY: all build push deploy logs start-registry test-local stop-local get-schema
+.PHONY: all build push deploy logs start-registry test-local stop-local get-schema build-api push-api deploy-api
 
 # Default target: Run everything in order
 all: deploy
@@ -41,11 +42,23 @@ build:
 	docker tag $(IMAGE_BACKEND):$(VERSION) $(FULL_IMAGE_BACKEND)
 	docker tag $(IMAGE_FRONTEND):$(VERSION) $(FULL_IMAGE_FRONTEND)
 
+# Step 1.5: Build only the backend
+build-api:
+	@echo "--- 🏗️   Building Backend Image ---"
+	DOCKER_DEFAULT_PLATFORM=linux/arm64 docker-compose build --build-arg BUILD_ID=$(BUILD_ID) --build-arg BUILD_DATE=$(BUILD_DATE) backend
+	@echo "--- 🏷️   Tagging Backend Image for Registry ---"
+	docker tag $(IMAGE_BACKEND):$(VERSION) $(FULL_IMAGE_BACKEND)
+
 # Step 2: Push the images to the Pi's Registry
 push: build
 	@echo "--- 🚀 Pushing to Registry at $(REGISTRY_URL) ---"
 	docker push $(FULL_IMAGE_BACKEND)
 	docker push $(FULL_IMAGE_FRONTEND)
+
+# Step 2.5: Push only the backend
+push-api: build-api
+	@echo "--- 🚀 Pushing Backend to Registry at $(REGISTRY_URL) ---"
+	docker push $(FULL_IMAGE_BACKEND)
 
 # Step 3: Tell the Pi to pull, tag, and run with docker-compose
 deploy: push start-registry
@@ -61,6 +74,15 @@ deploy: push start-registry
 	@echo "--- ✅ Deployment Complete! ---"
 	@echo "View App:      http://$(PI_HOST) (frontend)"
 	@echo "View Backend:  http://$(PI_HOST) (backend)"
+
+# Step 3.5: Deploy only the backend
+deploy-api: push-api start-registry
+	@echo "--- 📡 Deploying Backend to Raspberry Pi at $(PI_HOST) ---"
+	scp docker-compose.yml $(PI_USER)@$(PI_HOST):~/docker-compose.yml
+	ssh $(PI_USER)@$(PI_HOST) "docker pull $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) && \
+	docker tag $(MAC_IP):$(REGISTRY_PORT)/$(IMAGE_BACKEND):$(VERSION) $(IMAGE_BACKEND):$(VERSION) && \
+	ENABLE_DEBUGGER=$(ENABLE_DEBUGGER) docker compose up -d --no-deps backend"
+	@echo "--- ✅ Backend Deployment Complete! ---"
 
 # Helper: View logs of the running services on the Pi
 logs:

@@ -3,7 +3,9 @@ Main FastAPI application for the TARDIS Lights project.
 Provides REST and WebSocket endpoints for controlling LEDs, playing sounds,
 and managing animated scenes.
 """
+import json
 import os
+from pathlib import Path
 from typing import Optional, List
 
 from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
@@ -113,32 +115,19 @@ class SceneList(BaseModel):
     """Container for a list of available animated scenes."""
     scenes: List[Scene]
 
-# Configuration for LED Sections
-# Full String
-#LED_SECTIONS = [
-#    {"name": "Left Windows", "count": 195},
-#    {"name": "Rear Windows", "count": 110},
-#   {"name": "Left Police", "count": 100},
-#   {"name": "Right Windows", "count": 0},
-#   {"name": "Front Police", "count": 0},
-#    {"name": "Front Windows", "count": 0},
-#    {"name": "Rear Police", "count": 0},
-#    {"name": "Right Police", "count": 0},
-#   {"name": "Top Light", "count": 0},
-#    {"name": "Extra", "count": 0}
-#]
+class SectionConfigItem(BaseModel):
+    """A single LED section entry for configuration."""
+    name: str
+    count: int
 
-#full string for real sizes 
-# LED_SECTIONS = [
-#     {"name": "Left Window", "count": 283},
-#     {"name": "Spacer 1", "count": 17},
-#     {"name": "Left Police", "count": 166},
-#     {"name": "Rear Window","count": 348},
-#     {"name": "Rear Police", "count": 83}
-# ]
+class SectionsConfig(BaseModel):
+    """Container for the full LED sections configuration."""
+    sections: List[SectionConfigItem]
 
-#Short string for testing 
-LED_SECTIONS = [
+# --- LED Sections Config File ---
+CONFIG_FILE = Path(__file__).resolve().parent.parent / "led_sections.json"
+
+DEFAULT_LED_SECTIONS = [
     {"name": "Left Windows", "count": 2},
     {"name": "Rear Windows", "count": 2},
     {"name": "Left Police", "count": 2},
@@ -148,9 +137,23 @@ LED_SECTIONS = [
     {"name": "Rear Police", "count": 2},
     {"name": "Right Police", "count": 2},
     {"name": "Top Light", "count": 2},
-    {"name": "Extra", "count": 0}
+    {"name": "Extra", "count": 0},
 ]
 
+def load_sections_config() -> list:
+    """Load LED sections from JSON config file, or return defaults."""
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, "r") as f:
+            data = json.load(f)
+        return data.get("sections", DEFAULT_LED_SECTIONS)
+    return DEFAULT_LED_SECTIONS
+
+def save_sections_config(sections: list) -> None:
+    """Write LED sections to JSON config file."""
+    with open(CONFIG_FILE, "w") as f:
+        json.dump({"sections": sections}, f, indent=2)
+
+LED_SECTIONS = load_sections_config()
 
 led_manager = LEDManager(sections=LED_SECTIONS)
 sound_manager = SoundManager()
@@ -180,6 +183,19 @@ def read_root():
 def get_led_sections():
     """Retrieve the list of available LED sections and their pixel counts."""
     return LED_SECTIONS
+
+@app.get("/api/config/sections", response_model=SectionsConfig)
+def get_config_sections():
+    """Return the current LED sections configuration."""
+    sections = load_sections_config()
+    return {"sections": sections}
+
+@app.post("/api/config/sections")
+def save_config_sections(config: SectionsConfig):
+    """Save LED sections configuration to disk."""
+    sections = [s.model_dump() for s in config.sections]
+    save_sections_config(sections)
+    return {"status": "Configuration saved"}
 
 @app.post("/api/led/on")
 def turn_on(request: TurnOnRequest):

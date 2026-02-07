@@ -167,6 +167,9 @@ function App() {
   const [sounds, setSounds] = useState([]); // List of available sound files
   const [selectedSound, setSelectedSound] = useState(''); // Currently selected sound
   const [sections, setSections] = useState(['All']); // List of available LED sections
+  const [activeTab, setActiveTab] = useState('control'); // Active tab: 'control' or 'config'
+  const [configSections, setConfigSections] = useState([]); // Section config for Config tab
+  const [configStatus, setConfigStatus] = useState(''); // Status message for Config tab
 
   // Helper function to make API calls to the backend
   const callAPI = async (endpoint, body = {}) => {
@@ -258,6 +261,57 @@ function App() {
     fetchSounds();
   }, []);
 
+  // Fetch config sections when Config tab is selected
+  useEffect(() => {
+    if (activeTab === 'config') {
+      fetch('/api/config/sections')
+        .then(res => res.json())
+        .then(data => {
+          if (data.sections) setConfigSections(data.sections);
+        })
+        .catch(err => console.error('Error fetching config sections:', err));
+    }
+  }, [activeTab]);
+
+  const addSection = () => {
+    setConfigSections([...configSections, { name: 'New Section', count: 0 }]);
+  };
+
+  const removeSection = (index) => {
+    setConfigSections(configSections.filter((_, i) => i !== index));
+  };
+
+  const updateSection = (index, field, value) => {
+    const updated = configSections.map((s, i) =>
+      i === index ? { ...s, [field]: field === 'count' ? parseInt(value) || 0 : value } : s
+    );
+    setConfigSections(updated);
+  };
+
+  const moveSection = (index, direction) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= configSections.length) return;
+    const updated = [...configSections];
+    [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+    setConfigSections(updated);
+  };
+
+  const saveConfig = async () => {
+    try {
+      const response = await fetch('/api/config/sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sections: configSections }),
+      });
+      const data = await response.json();
+      setConfigStatus(data.status || 'Saved');
+    } catch (error) {
+      setConfigStatus('Error saving: ' + error.message);
+    }
+  };
+
+  const totalLeds = configSections.reduce((sum, s) => sum + s.count, 0);
+
   const ledFunctions = [
     { label: 'Pulse Color', endpoint: '/led/pulse', params: ['section', 'color', 'duration'] },
     { label: 'Rainbow', endpoint: '/led/rainbow', params: ['section', 'duration'] },
@@ -270,74 +324,177 @@ function App() {
     { label: 'Strobe', endpoint: '/led/strobe', params: ['section', 'color', 'frequency', 'duration'] },
   ];
 
+  const tabStyle = (tab) => ({
+    padding: '10px 20px',
+    cursor: 'pointer',
+    border: 'none',
+    borderBottom: activeTab === tab ? '3px solid #007bff' : '3px solid transparent',
+    background: 'none',
+    fontSize: '16px',
+    fontWeight: activeTab === tab ? 'bold' : 'normal',
+    color: activeTab === tab ? '#007bff' : '#666',
+  });
+
   return (
     <div style={{ padding: '20px' }}>
       <h1>Allons-z</h1>
-      {/* Scene Selection and Execution */}
-      <div style={{ marginTop: '20px', marginBottom: '10px' }}>
-        <label htmlFor="select-scene" style={{ marginRight: '10px' }}>Select Scene:</label>
-        <select
-          id="select-scene"
-          value={selectedScene}
-          onChange={(e) => setSelectedScene(e.target.value)}
-          style={{ padding: '5px' }}
-          disabled={scenes.length === 0}
-        >
-          {scenes.length === 0 ? (
-            <option>Loading...</option>
-          ) : (
-            scenes.map((scene) => (
-              <option key={scene.name} value={scene.name} title={scene.description}>{scene.name}</option>
-            ))
-          )}
-        </select>
-        <button onClick={() => callAPI(`/scenes/${selectedScene}/play`)} disabled={!selectedScene} style={{ marginLeft: '10px' }}>
-          Run Scene
-        </button>
-      </div>
-      {/* Sound Selection and Playback */}
-      <div style={{ marginBottom: '10px' }}>
-        <label htmlFor="select-sound" style={{ marginRight: '10px' }}>Select Sound:</label>
-        <select
-          id="select-sound"
-          value={selectedSound}
-          onChange={(e) => setSelectedSound(e.target.value)}
-          style={{ padding: '5px' }}
-          disabled={sounds.length === 0}
-        >
-          {Array.isArray(sounds) && sounds.map((sound) => (
-            <option key={sound.fileName} value={sound.fileName}>{sound.friendlyName}</option>
-          ))}
-        </select>
-        <button onClick={() => callAPI(`/play-sound/${selectedSound}`)} disabled={!selectedSound} style={{ marginLeft: '10px' }}>
-          Play Sound
-        </button>
-        <button onClick={() => callAPI('/stop-sound')} style={{ marginLeft: '10px' }}>
-          Stop Sound
-        </button>
-      </div>
-      
-      <h2>Section Control</h2>
-      <div style={{ marginBottom: '20px' }}>
-        {sections.map((section) => (
-          <SectionRow key={section} section={section} onCall={callAPI} />
-        ))}
+
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '20px' }}>
+        <button style={tabStyle('control')} onClick={() => setActiveTab('control')}>Control</button>
+        <button style={tabStyle('config')} onClick={() => setActiveTab('config')}>Config</button>
       </div>
 
-      <h2>LED Functions</h2>
-      <div style={{ marginBottom: '20px' }}>
-        {ledFunctions.map((func, index) => (
-          <TestRow
-            key={index}
-            {...func}
-            sections={sections}
-            onCall={callAPI}
-          />
-        ))}
-      </div>
+      {/* Control Tab */}
+      {activeTab === 'control' && (
+        <>
+          {/* Scene Selection and Execution */}
+          <div style={{ marginBottom: '10px' }}>
+            <label htmlFor="select-scene" style={{ marginRight: '10px' }}>Select Scene:</label>
+            <select
+              id="select-scene"
+              value={selectedScene}
+              onChange={(e) => setSelectedScene(e.target.value)}
+              style={{ padding: '5px' }}
+              disabled={scenes.length === 0}
+            >
+              {scenes.length === 0 ? (
+                <option>Loading...</option>
+              ) : (
+                scenes.map((scene) => (
+                  <option key={scene.name} value={scene.name} title={scene.description}>{scene.name}</option>
+                ))
+              )}
+            </select>
+            <button onClick={() => callAPI(`/scenes/${selectedScene}/play`)} disabled={!selectedScene} style={{ marginLeft: '10px' }}>
+              Run Scene
+            </button>
+          </div>
+          {/* Sound Selection and Playback */}
+          <div style={{ marginBottom: '10px' }}>
+            <label htmlFor="select-sound" style={{ marginRight: '10px' }}>Select Sound:</label>
+            <select
+              id="select-sound"
+              value={selectedSound}
+              onChange={(e) => setSelectedSound(e.target.value)}
+              style={{ padding: '5px' }}
+              disabled={sounds.length === 0}
+            >
+              {Array.isArray(sounds) && sounds.map((sound) => (
+                <option key={sound.fileName} value={sound.fileName}>{sound.friendlyName}</option>
+              ))}
+            </select>
+            <button onClick={() => callAPI(`/play-sound/${selectedSound}`)} disabled={!selectedSound} style={{ marginLeft: '10px' }}>
+              Play Sound
+            </button>
+            <button onClick={() => callAPI('/stop-sound')} style={{ marginLeft: '10px' }}>
+              Stop Sound
+            </button>
+          </div>
 
-      {/* Status Display */}
-      <p role="status" aria-live="polite">Status: {status}</p>
+          <h2>Section Control</h2>
+          <div style={{ marginBottom: '20px' }}>
+            {sections.map((section) => (
+              <SectionRow key={section} section={section} onCall={callAPI} />
+            ))}
+          </div>
+
+          <h2>LED Functions</h2>
+          <div style={{ marginBottom: '20px' }}>
+            {ledFunctions.map((func, index) => (
+              <TestRow
+                key={index}
+                {...func}
+                sections={sections}
+                onCall={callAPI}
+              />
+            ))}
+          </div>
+
+          {/* Status Display */}
+          <p role="status" aria-live="polite">Status: {status}</p>
+        </>
+      )}
+
+      {/* Config Tab */}
+      {activeTab === 'config' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h2 style={{ margin: 0 }}>Section Configuration</h2>
+            <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total LEDs: {totalLeds}</span>
+          </div>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+                <th style={{ padding: '8px', width: '40px' }}>#</th>
+                <th style={{ padding: '8px' }}>Name</th>
+                <th style={{ padding: '8px', width: '60px' }}>Start</th>
+                <th style={{ padding: '8px' }}>Count</th>
+                <th style={{ padding: '8px', width: '100px' }}>Reorder</th>
+                <th style={{ padding: '8px', width: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {configSections.map((section, index) => {
+                const start = configSections.slice(0, index).reduce((sum, s) => sum + s.count, 0);
+                return (
+                  <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                    <td style={{ padding: '8px' }}>{index + 1}</td>
+                    <td style={{ padding: '8px' }}>
+                      <input
+                        type="text"
+                        value={section.name}
+                        onChange={(e) => updateSection(index, 'name', e.target.value)}
+                        style={{ width: '100%', padding: '4px', boxSizing: 'border-box' }}
+                      />
+                    </td>
+                    <td style={{ padding: '8px', textAlign: 'center', color: '#888' }}>{start}</td>
+                    <td style={{ padding: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="range"
+                          min="0"
+                          max="500"
+                          value={section.count}
+                          onChange={(e) => updateSection(index, 'count', e.target.value)}
+                          style={{ flex: 1 }}
+                        />
+                        <input
+                          type="number"
+                          min="0"
+                          max="500"
+                          value={section.count}
+                          onChange={(e) => updateSection(index, 'count', e.target.value)}
+                          style={{ width: '60px', padding: '4px' }}
+                        />
+                      </div>
+                    </td>
+                    <td style={{ padding: '8px' }}>
+                      {index > 0 && (
+                        <button onClick={() => moveSection(index, -1)} style={{ marginRight: '4px' }} title="Move up">^</button>
+                      )}
+                      {index < configSections.length - 1 && (
+                        <button onClick={() => moveSection(index, 1)} title="Move down">v</button>
+                      )}
+                    </td>
+                    <td style={{ padding: '8px' }}>
+                      <button onClick={() => removeSection(index)} title="Remove section" style={{ color: 'red', border: 'none', background: 'none', cursor: 'pointer', fontSize: '16px' }}>X</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <button onClick={addSection}>+ Add Section</button>
+            <button onClick={saveConfig} style={{ padding: '8px 20px', fontWeight: 'bold' }}>Save Configuration</button>
+          </div>
+
+          {configStatus && <p style={{ marginTop: '10px', color: configStatus.startsWith('Error') ? 'red' : 'green' }}>{configStatus}</p>}
+        </div>
+      )}
 
       {/* Footer with Build Info */}
       <div style={{

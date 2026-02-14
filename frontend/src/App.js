@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 // Helper function to convert hex color string to RGB object
 const hexToRgb = (hex) => {
@@ -170,6 +170,8 @@ function App() {
   const [activeTab, setActiveTab] = useState('control'); // Active tab: 'control' or 'config'
   const [configSections, setConfigSections] = useState([]); // Section config for Config tab
   const [configStatus, setConfigStatus] = useState(''); // Status message for Config tab
+  const [activeSection, setActiveSection] = useState(null); // Index of section being previewed
+  const previewTimeout = useRef(null);
 
   // Helper function to make API calls to the backend
   const callAPI = async (endpoint, body = {}) => {
@@ -261,7 +263,7 @@ function App() {
     fetchSounds();
   }, []);
 
-  // Fetch config sections when Config tab is selected
+  // Fetch config sections when Config tab is selected; turn off preview when leaving
   useEffect(() => {
     if (activeTab === 'config') {
       fetch('/api/config/sections')
@@ -270,6 +272,14 @@ function App() {
           if (data.sections) setConfigSections(data.sections);
         })
         .catch(err => console.error('Error fetching config sections:', err));
+    } else {
+      // Leaving config tab — turn off preview LEDs
+      setActiveSection(null);
+      fetch('/api/config/sections/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: 0 }),
+      }).catch(err => console.error('Preview cleanup error:', err));
     }
   }, [activeTab]);
 
@@ -286,6 +296,10 @@ function App() {
       i === index ? { ...s, [field]: field === 'count' ? parseInt(value) || 0 : value } : s
     );
     setConfigSections(updated);
+    if (field === 'count') {
+      setActiveSection(index);
+      previewSection(index, updated);
+    }
   };
 
   const moveSection = (index, direction) => {
@@ -308,6 +322,18 @@ function App() {
     } catch (error) {
       setConfigStatus('Error saving: ' + error.message);
     }
+  };
+
+  const previewSection = (index, sections) => {
+    clearTimeout(previewTimeout.current);
+    const count = sections.slice(0, index + 1).reduce((sum, s) => sum + s.count, 0);
+    previewTimeout.current = setTimeout(() => {
+      fetch('/api/config/sections/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count }),
+      }).catch(err => console.error('Preview error:', err));
+    }, 100);
   };
 
   const totalLeds = configSections.reduce((sum, s) => sum + s.count, 0);
@@ -439,7 +465,7 @@ function App() {
               {configSections.map((section, index) => {
                 const start = configSections.slice(0, index).reduce((sum, s) => sum + s.count, 0);
                 return (
-                  <tr key={index} style={{ borderBottom: '1px solid #eee' }}>
+                  <tr key={index} onClick={() => { setActiveSection(index); previewSection(index, configSections); }} style={{ borderBottom: '1px solid #eee', cursor: 'pointer', backgroundColor: activeSection === index ? '#e8f0fe' : 'transparent' }}>
                     <td style={{ padding: '8px' }}>{index + 1}</td>
                     <td style={{ padding: '8px' }}>
                       <input
@@ -488,7 +514,10 @@ function App() {
           </table>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <button onClick={addSection}>+ Add Section</button>
+            <div>
+              <button onClick={addSection}>+ Add Section</button>
+              <a href="#" onClick={(e) => { e.preventDefault(); setConfigSections(configSections.map(s => ({ ...s, count: 0 }))); setActiveSection(null); previewSection(-1, []); }} style={{ marginLeft: '15px', fontSize: '14px' }}>Reset Counts</a>
+            </div>
             <button onClick={saveConfig} style={{ padding: '8px 20px', fontWeight: 'bold' }}>Save Configuration</button>
           </div>
 

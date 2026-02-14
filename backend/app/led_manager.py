@@ -45,6 +45,8 @@ if not REAL_HARDWARE:
 
 class LEDManager:
     """Manages LED strips and sections for the TARDIS lights system."""
+    MAX_LEDS = 5000  # Fixed buffer size — never recreated
+
     def __init__(self, sections, pin=board.D18):
         """
         Initialize the LEDManager.
@@ -54,9 +56,10 @@ class LEDManager:
             pin (board.Pin): The GPIO pin connected to the LED strip.
         """
         self.sections_config = sections
+        self.pin = pin
         self.section_ranges = {}
         self.num_leds = 0
-        
+
         # Build the section ranges
         for section in sections:
             count = section['count']
@@ -66,7 +69,7 @@ class LEDManager:
             self.section_ranges[name] = (start, end)
             self.num_leds += count
 
-        self.pixels = neopixel.NeoPixel(pin, self.num_leds, brightness=0.2, auto_write=False)
+        self.pixels = neopixel.NeoPixel(pin, self.MAX_LEDS, brightness=0.2, auto_write=False)
         self.lock = threading.Lock()
 
     def _get_range(self, section_name):
@@ -477,3 +480,21 @@ class LEDManager:
             duration (float): The duration of the delay in seconds.
         """
         time.sleep(duration)
+
+    def preview_count(self, count, color=(255, 255, 255)):
+        """
+        Light up LEDs 0 through count-1 for strip calibration.
+
+        Used during configuration to visually show where a cumulative LED
+        count lands on the physical strip. Sections are irrelevant here.
+
+        Args:
+            count (int): Number of LEDs to light starting from 0. Pass 0 to turn all off.
+            color (tuple): RGB color for the lit LEDs.
+        """
+        count = max(0, min(count, self.MAX_LEDS))
+
+        with self.lock:
+            for i in range(self.MAX_LEDS):
+                self.pixels[i] = color if i < count else (0, 0, 0)
+            self.pixels.show()

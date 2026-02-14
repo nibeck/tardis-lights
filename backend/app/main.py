@@ -124,6 +124,10 @@ class SectionsConfig(BaseModel):
     """Container for the full LED sections configuration."""
     sections: List[SectionConfigItem]
 
+class PreviewRequest(BaseModel):
+    """Request to preview LEDs on the physical strip up to a count."""
+    count: int
+
 # --- LED Sections Config File ---
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "led_sections.json"
 
@@ -195,7 +199,15 @@ def save_config_sections(config: SectionsConfig):
     """Save LED sections configuration to disk."""
     sections = [s.model_dump() for s in config.sections]
     save_sections_config(sections)
+    # Turn off preview LEDs after saving
+    led_manager.preview_count(0)
     return {"status": "Configuration saved"}
+
+@app.post("/api/config/sections/preview")
+def preview_config_sections(request: PreviewRequest):
+    """Light up LEDs 0 through count for strip calibration."""
+    led_manager.preview_count(request.count)
+    return {"status": "Preview updated"}
 
 @app.post("/api/led/on")
 def turn_on(request: TurnOnRequest):

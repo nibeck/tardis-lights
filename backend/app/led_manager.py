@@ -45,17 +45,18 @@ if not REAL_HARDWARE:
 
 class LEDManager:
     """Manages LED strips and sections for the TARDIS lights system."""
-    MAX_LEDS = 5000  # Fixed buffer size — never recreated
 
-    def __init__(self, sections, pin=board.D18):
+    def __init__(self, sections, pin=board.D18, buffer_size=None):
         """
         Initialize the LEDManager.
 
         Args:
             sections (list): A list of dictionaries defining LED sections (e.g., [{'name': 'top', 'count': 10}]).
             pin (board.Pin): The GPIO pin connected to the LED strip.
+            buffer_size (int, optional): Fixed NeoPixel allocation size. Must be >= the largest
+                possible section total across all presets. Created once and never recreated.
+                Defaults to the section total of the initial config.
         """
-        self.sections_config = sections
         self.pin = pin
         self.section_ranges = {}
         self.num_leds = 0
@@ -69,7 +70,12 @@ class LEDManager:
             self.section_ranges[name] = (start, end)
             self.num_leds += count
 
-        self.pixels = neopixel.NeoPixel(pin, self.MAX_LEDS, brightness=0.2, auto_write=False)
+        self.sections_config = sections
+        self.MAX_LEDS = self.num_leds
+        # NeoPixel is allocated once at startup and never recreated.
+        # buffer_size must cover the largest preset to avoid hardware re-init.
+        self._pixel_buffer_size = buffer_size if buffer_size else self.num_leds
+        self.pixels = neopixel.NeoPixel(pin, self._pixel_buffer_size, brightness=0.2, auto_write=False)
         self.lock = threading.Lock()
 
     def _get_range(self, section_name):
@@ -94,7 +100,7 @@ class LEDManager:
             color (tuple): The RGB color tuple (r, g, b).
             section_name (str, optional): The name of the section to set. If None, sets the entire strip.
         """
-        print ("Section in set_color function: ", section_name)
+        print ("Section in set_color function: ", section_name, "Range: ",self.section_ranges)
         start, end = self._get_range(section_name)
         with self.lock:
             try:
@@ -143,7 +149,8 @@ class LEDManager:
                 # If it's black/off, default to white so we see something
                 if color == (0, 0, 0):
                     color = (255, 255, 255)
-            except:
+            except Exception as e:
+                print(f"Error getting color for pulse: {e}", file=sys.stderr, flush=True)
                 color = (255, 255, 255)
 
         # Simple pulse effect
@@ -196,34 +203,55 @@ class LEDManager:
         """
         Smoothly fade from the current color to the new color over the duration for the identified section.
 
+        Uses gamma-corrected interpolation so the fade looks perceptually uniform in
+        both directions (black→white and white→black take the same apparent time).
+
         Args:
             section (str): The name of the section.
             to_color (tuple): The target RGB color tuple (r, g, b).
             duration (float): The duration of the fade in seconds.
         """
         start, end = self._get_range(section)
-        
+
         # Calculate steps to maintain approx 50 updates per second
-        steps = int(max(1, duration * 50))
-        delay = duration / steps
+        steps = int(max(1, duration * 15))
 
         try:
             start_color = self.pixels[start]
         except Exception:
             start_color = (0, 0, 0)
 
+        # Convert start/end colors to linear light space for perceptually uniform fading.
+        # Human vision is roughly gamma 2.2: a physically half-bright LED looks ~73% bright.
+        # Interpolating in linear space makes on/off fades feel equally long.
+        gamma = 2.2
+        start_lin = tuple((c / 255.0) ** gamma for c in start_color)
+        end_lin = tuple((c / 255.0) ** gamma for c in to_color)
+
+        print(f"fade_to_color: section={section!r} from={start_color} to={to_color} duration={duration}s steps={steps}", flush=True)
+        fade_start = time.monotonic()
         for i in range(1, steps + 1):
             ratio = i / steps
-            r = int(start_color[0] * (1 - ratio) + to_color[0] * ratio)
-            g = int(start_color[1] * (1 - ratio) + to_color[1] * ratio)
-            b = int(start_color[2] * (1 - ratio) + to_color[2] * ratio)
-            current_color = (r, g, b)
+            # Interpolate in linear light space, convert back to gamma-encoded
+            current_color = tuple(
+                int((start_lin[ch] * (1 - ratio) + end_lin[ch] * ratio) ** (1.0 / gamma) * 255)
+                for ch in range(3)
+            )
 
             with self.lock:
                 for p in range(start, end):
                     self.pixels[p] = current_color
                 self.pixels.show()
-            time.sleep(delay)
+
+            # Sleep only the remaining time budgeted for this step so that
+            # show() transmission overhead doesn't accumulate into extra duration.
+            target_time = fade_start + ratio * duration
+            remaining = target_time - time.monotonic()
+            if remaining > 0:
+                time.sleep(remaining)
+
+        elapsed = time.monotonic() - fade_start
+        print(f"fade_to_color: completed in {elapsed:.3f}s (requested {duration}s, delta {elapsed - duration:+.3f}s)", flush=True)
 
     def breath(self, section, color, period, count):
         """
@@ -480,6 +508,34 @@ class LEDManager:
             duration (float): The duration of the delay in seconds.
         """
         time.sleep(duration)
+
+    def reload_sections(self, sections):
+        """
+        Reload section configuration without touching the hardware pixel buffer.
+
+        Updates section ranges and MAX_LEDS in-place. The NeoPixel object is
+        never recreated so the hardware GPIO/DMA stays intact.
+
+        Args:
+            sections (list): New list of section dicts with 'name' and 'count' keys.
+        """
+        with self.lock:
+            # Turn off all currently active LEDs before reconfiguring
+            for i in range(self.num_leds):
+                self.pixels[i] = (0, 0, 0)
+            self.pixels.show()
+
+            self.sections_config = sections
+            self.section_ranges = {}
+            self.num_leds = 0
+            for section in sections:
+                count = section['count']
+                name = section['name']
+                start = self.num_leds
+                end = start + count
+                self.section_ranges[name] = (start, end)
+                self.num_leds += count
+            self.MAX_LEDS = self.num_leds
 
     def preview_count(self, count, color=(255, 255, 255)):
         """

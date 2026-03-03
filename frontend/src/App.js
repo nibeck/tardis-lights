@@ -121,20 +121,42 @@ const SectionRow = ({ section, onCall }) => {
   const [color, setColor] = useState('#ff0000');
   const [isOn, setIsOn] = useState(false);
 
-  const idPrefix = section.replace(/\s+/g, '-').toLowerCase();
-
   const handleColorChange = (e) => {
     setColor(e.target.value);
   };
 
-  const handleOn = () => {
-    setIsOn(true);
-    onCall('/led/on', { section, color: hexToRgb(color) });
+  const handleToggle = () => {
+    if (isOn) {
+      setIsOn(false);
+      onCall('/led/off', { section });
+    } else {
+      setIsOn(true);
+      onCall('/led/on', { section, color: hexToRgb(color) });
+    }
   };
 
-  const handleOff = () => {
-    setIsOn(false);
-    onCall('/led/off', { section });
+  const toggleTrackStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    width: '48px',
+    height: '26px',
+    borderRadius: '13px',
+    backgroundColor: isOn ? '#28a745' : '#ccc',
+    padding: '3px',
+    cursor: 'pointer',
+    border: 'none',
+    transition: 'background-color 0.2s',
+    flexShrink: 0,
+  };
+
+  const toggleThumbStyle = {
+    width: '20px',
+    height: '20px',
+    borderRadius: '50%',
+    backgroundColor: '#fff',
+    transform: isOn ? 'translateX(22px)' : 'translateX(0)',
+    transition: 'transform 0.2s',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
   };
 
   return (
@@ -147,14 +169,16 @@ const SectionRow = ({ section, onCall }) => {
         style={{ marginRight: '10px' }}
         aria-label={`${section} Color`}
       />
-      <label style={{ marginRight: '10px' }}>
-        <input type="radio" name={`power-${idPrefix}`} checked={isOn} onChange={handleOn} style={{ marginRight: '5px' }} />
-        On
-      </label>
-      <label>
-        <input type="radio" name={`power-${idPrefix}`} checked={!isOn} onChange={handleOff} style={{ marginRight: '5px' }} />
-        Off
-      </label>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isOn}
+        aria-label={`${section} power`}
+        onClick={handleToggle}
+        style={toggleTrackStyle}
+      >
+        <span style={toggleThumbStyle} />
+      </button>
     </div>
   );
 };
@@ -170,7 +194,10 @@ function App() {
   const [activeTab, setActiveTab] = useState('control'); // Active tab: 'control' or 'config'
   const [configSections, setConfigSections] = useState([]); // Section config for Config tab
   const [configStatus, setConfigStatus] = useState(''); // Status message for Config tab
+  const [presets, setPresets] = useState({}); // Named LED section presets
+  const [sliderMax, setSliderMax] = useState(500); // Slider max for section count inputs
   const [activeSection, setActiveSection] = useState(null); // Index of section being previewed
+  const [sectionColors, setSectionColors] = useState({}); // Current display color per section name
   const previewTimeout = useRef(null);
 
   // Helper function to make API calls to the backend
@@ -195,6 +222,29 @@ function App() {
       console.error('API Error:', error);
       setStatus('Error: ' + error.message);
     }
+  };
+
+  // Update the displayed color for one section (or all named sections when sectionName is falsy/"All")
+  const updateSectionColor = (sectionName, color) => {
+    const targets = (!sectionName || sectionName === 'All')
+      ? sections.filter(s => s !== 'All')
+      : [sectionName];
+    setSectionColors(prev => {
+      const next = { ...prev };
+      targets.forEach(s => { next[s] = color; });
+      return next;
+    });
+  };
+
+  // Wraps callAPI and tracks color changes for endpoints that produce a known final color
+  const callAPIAndTrack = (endpoint, body = {}) => {
+    callAPI(endpoint, body);
+    let color = null;
+    if (endpoint === '/led/on')    color = body.color || { r: 255, g: 255, b: 255 };
+    else if (endpoint === '/led/off')   color = { r: 0, g: 0, b: 0 };
+    else if (endpoint === '/led/color') color = body.color;
+    else if (endpoint === '/led/fade')  color = body.color;
+    if (color) updateSectionColor(body.section, color);
   };
 
   // Helper function to format date as MM/DD/YY. HH:MM:SS
@@ -272,6 +322,12 @@ function App() {
           if (data.sections) setConfigSections(data.sections);
         })
         .catch(err => console.error('Error fetching config sections:', err));
+      fetch('/api/config/sections/presets')
+        .then(res => res.json())
+        .then(data => {
+          if (data.presets) setPresets(data.presets);
+        })
+        .catch(err => console.error('Error fetching presets:', err));
     } else {
       // Leaving config tab — turn off preview LEDs
       setActiveSection(null);
@@ -365,6 +421,9 @@ function App() {
     <div style={{ padding: '20px' }}>
       <h1>Allons-z</h1>
 
+      <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+
       {/* Tab Navigation */}
       <div style={{ display: 'flex', borderBottom: '1px solid #ddd', marginBottom: '20px' }}>
         <button style={tabStyle('control')} onClick={() => setActiveTab('control')}>Control</button>
@@ -421,7 +480,7 @@ function App() {
           <h2>Section Control</h2>
           <div style={{ marginBottom: '20px' }}>
             {sections.map((section) => (
-              <SectionRow key={section} section={section} onCall={callAPI} />
+              <SectionRow key={section} section={section} onCall={callAPIAndTrack} />
             ))}
           </div>
 
@@ -432,7 +491,7 @@ function App() {
                 key={index}
                 {...func}
                 sections={sections}
-                onCall={callAPI}
+                onCall={callAPIAndTrack}
               />
             ))}
           </div>
@@ -447,7 +506,24 @@ function App() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
             <h2 style={{ margin: 0 }}>Section Configuration</h2>
-            <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total LEDs: {totalLeds}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              {Object.keys(presets).length > 0 && (
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <span style={{ fontSize: '14px', color: '#666', alignSelf: 'center', marginRight: '4px' }}>Load preset:</span>
+                  {Object.keys(presets).map(name => (
+                    <button
+                      key={name}
+                      onClick={() => { const p = presets[name]; setConfigSections(p); setSliderMax(Math.max(10, ...p.map(s => s.count))); setConfigStatus(''); setActiveSection(null); }}
+                      style={{ padding: '4px 10px', fontSize: '13px', textTransform: 'capitalize', cursor: 'pointer' }}
+                      title={`Load ${name} preset`}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <span style={{ fontSize: '16px', fontWeight: 'bold' }}>Total LEDs: {totalLeds}</span>
+            </div>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '15px' }}>
@@ -481,7 +557,7 @@ function App() {
                         <input
                           type="range"
                           min="0"
-                          max="500"
+                          max={sliderMax}
                           value={section.count}
                           onChange={(e) => updateSection(index, 'count', e.target.value)}
                           style={{ flex: 1 }}
@@ -489,7 +565,7 @@ function App() {
                         <input
                           type="number"
                           min="0"
-                          max="500"
+                          max={sliderMax}
                           value={section.count}
                           onChange={(e) => updateSection(index, 'count', e.target.value)}
                           style={{ width: '60px', padding: '4px' }}
@@ -516,7 +592,7 @@ function App() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <button onClick={addSection}>+ Add Section</button>
-              <a href="#" onClick={(e) => { e.preventDefault(); setConfigSections(configSections.map(s => ({ ...s, count: 0 }))); setActiveSection(null); previewSection(-1, []); }} style={{ marginLeft: '15px', fontSize: '14px' }}>Reset Counts</a>
+              <button type="button" onClick={() => { setConfigSections(configSections.map(s => ({ ...s, count: 0 }))); setActiveSection(null); previewSection(-1, []); }} style={{ marginLeft: '15px', fontSize: '14px', background: 'none', border: 'none', padding: 0, color: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}>Reset Counts</button>
             </div>
             <button onClick={saveConfig} style={{ padding: '8px 20px', fontWeight: 'bold' }}>Save Configuration</button>
           </div>
@@ -524,6 +600,51 @@ function App() {
           {configStatus && <p style={{ marginTop: '10px', color: configStatus.startsWith('Error') ? 'red' : 'green' }}>{configStatus}</p>}
         </div>
       )}
+
+      </div>{/* end left column */}
+
+      {/* Right column - Section Visualizer */}
+      <div style={{ width: '220px', flexShrink: 0, position: 'sticky', top: '20px' }}>
+        <h3 style={{ margin: '0 0 10px 0', fontSize: '14px', color: '#555', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sections</h3>
+
+        {/* Row 1: Top Light (centered) */}
+        {(() => { const c = sectionColors['Top Light']; return (
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: '60px', height: '60px', backgroundColor: c ? `rgb(${c.r},${c.g},${c.b})` : '#1a1a1a', border: '1px solid #555', borderRadius: '4px' }} />
+              <div style={{ fontSize: '9px', marginTop: '3px', lineHeight: '1.2' }}>Top Light</div>
+            </div>
+          </div>
+        ); })()}
+
+        {/* Row 2: Police sections (half height) */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+          {['Front Police', 'Left Police', 'Rear Police', 'Right Police'].map(name => {
+            const c = sectionColors[name];
+            return (
+              <div key={name} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ height: '30px', backgroundColor: c ? `rgb(${c.r},${c.g},${c.b})` : '#1a1a1a', border: '1px solid #555', borderRadius: '3px' }} />
+                <div style={{ fontSize: '8px', marginTop: '3px', lineHeight: '1.2', wordBreak: 'break-word' }}>{name}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Row 3: Window sections */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {['Left Front Windows', 'Left Windows', 'Rear Windows', 'Right Windows', 'Right Front Windows'].map(name => {
+            const c = sectionColors[name];
+            return (
+              <div key={name} style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ height: '60px', backgroundColor: c ? `rgb(${c.r},${c.g},${c.b})` : '#1a1a1a', border: '1px solid #555', borderRadius: '3px' }} />
+                <div style={{ fontSize: '8px', marginTop: '3px', lineHeight: '1.2', wordBreak: 'break-word' }}>{name}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      </div>{/* end two-column layout */}
 
       {/* Footer with Build Info */}
       <div style={{

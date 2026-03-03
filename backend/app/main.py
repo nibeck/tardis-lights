@@ -131,18 +131,36 @@ class PreviewRequest(BaseModel):
 # --- LED Sections Config File ---
 CONFIG_FILE = Path(__file__).resolve().parent.parent / "led_sections.json"
 
-DEFAULT_LED_SECTIONS = [
-    {"name": "Left Windows", "count": 2},
-    {"name": "Rear Windows", "count": 2},
-    {"name": "Left Police", "count": 2},
-    {"name": "Right Windows", "count": 2},
-    {"name": "Front Police", "count": 2},
-    {"name": "Front Windows", "count": 2},
-    {"name": "Rear Police", "count": 2},
-    {"name": "Right Police", "count": 2},
-    {"name": "Top Light", "count": 2},
-    {"name": "Extra", "count": 0},
+TEST_LED_SECTIONS = [
+    {"name": "Left Front Windows", "count": 1},
+    {"name": "Left Windows", "count": 1},
+    {"name": "Left Police", "count": 1},
+    {"name": "Rear Windows", "count": 1},
+    {"name": "Rear Police", "count": 1},
+    {"name": "Top Light", "count": 1},
+    {"name": "Right Police", "count": 1},
+    {"name": "Right Windows", "count": 1},
+    {"name": "Front Police", "count": 1},
+    {"name": "Right Front Windows", "count": 1}
 ]
+
+DEFAULT_LED_SECTIONS = [
+    {"name": "Left Front Windows", "count": 159},
+    {"name": "Left Windows", "count": 300},
+    {"name": "Left Police", "count": 167},
+    {"name": "Rear Windows", "count": 300},
+    {"name": "Rear Police", "count": 167},
+    {"name": "Top Light", "count": 67},
+    {"name": "Right Windows", "count": 300},
+    {"name": "Right Police", "count": 167},
+    {"name": "Front Police", "count": 163},
+    {"name": "Right Front Windows", "count": 157}
+]
+
+LED_PRESETS = {
+    "production": DEFAULT_LED_SECTIONS,
+    "test": TEST_LED_SECTIONS,
+}
 
 def load_sections_config() -> list:
     """Load LED sections from JSON config file, or return defaults."""
@@ -159,7 +177,11 @@ def save_sections_config(sections: list) -> None:
 
 LED_SECTIONS = load_sections_config()
 
-led_manager = LEDManager(sections=LED_SECTIONS)
+# Size the NeoPixel buffer for the largest preset so reload_sections never
+# needs to recreate the hardware object regardless of which preset is active.
+_pixel_buffer_size = max(sum(s['count'] for s in p) for p in LED_PRESETS.values())
+
+led_manager = LEDManager(sections=LED_SECTIONS, buffer_size=_pixel_buffer_size)
 sound_manager = SoundManager()
 scene_manager = SceneManager(led_manager)
 
@@ -194,13 +216,19 @@ def get_config_sections():
     sections = load_sections_config()
     return {"sections": sections}
 
+@app.get("/api/config/sections/presets")
+def get_section_presets():
+    """Return the available named LED section presets."""
+    return {"presets": LED_PRESETS}
+
 @app.post("/api/config/sections")
 def save_config_sections(config: SectionsConfig):
-    """Save LED sections configuration to disk."""
+    """Save LED sections configuration to disk and apply immediately."""
+    global LED_SECTIONS
     sections = [s.model_dump() for s in config.sections]
     save_sections_config(sections)
-    # Turn off preview LEDs after saving
-    led_manager.preview_count(0)
+    LED_SECTIONS = sections
+    led_manager.reload_sections(sections)
     return {"status": "Configuration saved"}
 
 @app.post("/api/config/sections/preview")

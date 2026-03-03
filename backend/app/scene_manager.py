@@ -3,6 +3,23 @@ import sys
 import random
 from .led_manager import LEDManager
 
+ALLOWED_ACTIONS = {
+    "set_color",
+    "turn_on",
+    "turn_off",
+    "pulse",
+    "fade_to",
+    "fade_to_color",
+    "breath",
+    "rainbow_cycle",
+    "cylon",
+    "wipe",
+    "chase",
+    "sparkle",
+    "flicker",
+    "strobe",
+}
+
 # Scene Definitions
 SCENE_DEFS = {
     "Welcome": {
@@ -82,5 +99,6 @@ class SceneManager:
                 time.sleep(args[0])
             elif action_name == "flash_sections_randomly":
                 self._flash_sections_randomly(**kwargs)
-            else:
+            elif action_name in ALLOWED_ACTIONS:
                 getattr(self.led_manager, action_name)(*args, **kwargs)
+            else: print(f"Warning: Action '{action_name}' is not allowed.", file=sys.stderr, flush=True)
